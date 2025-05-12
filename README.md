@@ -1,4 +1,3 @@
-```markdown
 # Shift & Ticket Time Tracker
 
 A flexible, real-time time tracking platform for teams, organizations, and volunteers. Log work sessions, track time on individual tasks ("tickets"), and collaborate across teams with robust role management and audit features.
@@ -138,4 +137,3 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 For questions, support, or feature requests, please visit [ozwell.ai](https://ozwell.ai?utm_source=bluehive&utm_medium=chat&utm_campaign=bluehive-ai) or email [info@ozwell.ai](mailto:info@ozwell.ai).
 
 ---
-```
