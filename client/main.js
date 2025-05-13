@@ -33,6 +33,12 @@ Template.mainLayout.events({
   },
 });
 
+Template.body.helpers({
+  currentScreen() {
+    return currentScreen.get();
+  },
+});
+
 Template.authPage.events({
   'click #joinTeam'() {
     currentScreen.set('joinTeam');
