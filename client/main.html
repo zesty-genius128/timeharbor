@@ -30,7 +30,45 @@
 
 <template name="teams">
   <h3>Teams</h3>
-  <p>{{message}}</p>
+  {{#if selectedTeam}}
+    <div class="team-details">
+      <button id="backToTeams">&larr; Back to Teams</button>
+      <h4>{{selectedTeam.name}}</h4>
+      <div class="team-code-box">
+        <button id="copyTeamCode">Copy Team Code</button>
+      </div>
+      <h5>Members:</h5>
+      <div class="members-list">
+        {{#each selectedTeam.members}}
+          <div class="member-box">{{this.username}}</div>
+        {{/each}}
+      </div>
+    </div>
+  {{else}}
+    <button id="showCreateTeamForm">Create Team</button>
+    <button id="showJoinTeamForm">Join Team</button>
+    {{#if showCreateTeam}}
+      <form id="createTeamForm">
+        <input type="text" name="teamName" placeholder="Team Name" required />
+        <button type="submit">Create Team</button>
+        <button type="button" id="cancelCreateTeam">Cancel</button>
+      </form>
+    {{/if}}
+    {{#if showJoinTeam}}
+      <form id="joinTeamForm">
+        <input type="text" name="teamCode" placeholder="Enter Team Code" required />
+        <button type="submit">Join Team</button>
+        <button type="button" id="cancelJoinTeam">Cancel</button>
+      </form>
+    {{/if}}
+    <div class="teams-list">
+      {{#each userTeams}}
+        <div class="team-box">
+          <a href="#" class="team-link" data-id="{{_id}}">{{name}}</a>
+        </div>
+      {{/each}}
+    </div>
+  {{/if}}
 </template>
 
 <template name="tickets">

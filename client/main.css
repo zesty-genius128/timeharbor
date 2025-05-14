@@ -43,3 +43,65 @@ footer {
   bottom: 0;
   width: 100%;
 }
+
+.teams-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.team-box {
+  background: #f8f9fa;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  min-width: 180px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s, border 0.2s;
+}
+
+.team-box:hover {
+  border: 1.5px solid #2563eb;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.08);
+}
+
+.team-link {
+  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: block;
+}
+
+.team-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.members-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.member-box {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  min-width: 120px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #334155;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s, border 0.2s;
+}
+
+.member-box:hover {
+  border: 1.5px solid #2563eb;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+}

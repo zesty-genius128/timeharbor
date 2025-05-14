@@ -1,5 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
+import { Teams } from '../collections.js';
 
 import './main.html';
 
@@ -96,5 +97,78 @@ Template.authPage.events({
         currentScreen.set('mainLayout');
       }
     });
+  },
+});
+
+Template.teams.onCreated(function () {
+  this.showCreateTeam = new ReactiveVar(false);
+  this.selectedTeamId = new ReactiveVar(null);
+  this.selectedTeamUsers = new ReactiveVar([]);
+  this.autorun(() => {
+    this.subscribe('userTeams');
+    const selectedId = this.selectedTeamId.get();
+    if (selectedId) {
+      this.subscribe('teamDetails', selectedId);
+      const team = Teams.findOne(selectedId);
+      if (team && team.members && team.members.length > 0) {
+        Meteor.call('getUsers', team.members, (err, users) => {
+          if (!err) {
+            this.selectedTeamUsers.set(users);
+          } else {
+            this.selectedTeamUsers.set([]);
+          }
+        });
+      } else {
+        this.selectedTeamUsers.set([]);
+      }
+    } else {
+      this.selectedTeamUsers.set([]);
+    }
+  });
+});
+
+Template.teams.helpers({
+  showCreateTeam() {
+    return Template.instance().showCreateTeam.get();
+  },
+  userTeams() {
+    return Teams.find({ members: Meteor.userId() });
+  },
+  selectedTeam() {
+    const id = Template.instance().selectedTeamId.get();
+    const queriedTeam = id ? Teams.findOne(id) : null;
+    if (!queriedTeam) return null;
+    return {
+      name: queriedTeam.name,
+      code: queriedTeam.code,
+      members: Template.instance().selectedTeamUsers.get(),
+      admins: queriedTeam.admins,
+      leader: queriedTeam.leader,
+      createdAt: queriedTeam.createdAt,
+    };
+  },
+});
+
+Template.teams.events({
+  'click #showCreateTeamForm'(e, t) {
+    t.showCreateTeam.set(true);
+  },
+  'click #cancelCreateTeam'(e, t) {
+    t.showCreateTeam.set(false);
+  },
+  'submit #createTeamForm'(e, t) {
+    e.preventDefault();
+    const teamName = e.target.teamName.value;
+    Meteor.call('createTeam', teamName, (err) => {
+      if (!err) {
+        t.showCreateTeam.set(false);
+      } else {
+        alert('Error creating team: ' + err.reason);
+      }
+    });
+  },
+  'click .team-link'(e, t) {
+    e.preventDefault();
+    t.selectedTeamId.set(e.currentTarget.dataset.id);
   },
 });
