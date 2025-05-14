@@ -171,4 +171,8 @@ Template.teams.events({
     e.preventDefault();
     t.selectedTeamId.set(e.currentTarget.dataset.id);
   },
+  'click #backToTeams'(e, t) {
+    t.selectedTeamId.set(null);
+    t.selectedTeamUsers.set([]); // Clear users when going back
+  },
 });
