@@ -78,11 +78,17 @@
       <label for="teamSelect">Select Team:</label>
       <select id="teamSelect">
         {{#each userTeams}}
-          {{!-- Move the conditional outside the attribute --}}
           <option value="{{_id}}" {{isSelectedTeam _id}}>{{name}}</option>
         {{/each}}
       </select>
       <button id="showCreateTicketForm">Create Ticket</button>
+    </div>
+    <div class="clockin-controls">
+      {{#if isClockedInForTeam selectedTeamId}}
+        <button id="clockOutBtn">Clock Out</button>
+      {{else}}
+        <button id="clockInBtn">Clock In</button>
+      {{/if}}
     </div>
     {{#if showCreateTicketForm}}
       <form id="createTicketForm" class="ticket-form">

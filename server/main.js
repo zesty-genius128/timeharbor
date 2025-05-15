@@ -3,7 +3,7 @@ import { Mongo } from 'meteor/mongo';
 import { countAsync } from 'meteor/mongo';
 import { Accounts } from 'meteor/accounts-base';
 import { check } from 'meteor/check';
-import { Tickets, Teams, Sessions } from '../collections.js';
+import { Tickets, Teams, Sessions, ClockEvents } from '../collections.js';
 
 function generateTeamCode() {
   // Simple random code, can be improved for production
@@ -50,6 +50,11 @@ Meteor.publish('teamMembers', function (teamIds) {
 Meteor.publish('teamTickets', function (teamId) {
   check(teamId, String);
   return Tickets.find({ teamId });
+});
+
+Meteor.publish('clockEventsForUser', function () {
+  if (!this.userId) return this.ready();
+  return ClockEvents.find({ userId: this.userId });
 });
 
 Meteor.methods({
@@ -129,17 +134,6 @@ Meteor.methods({
     check(seconds, Number);
     Tickets.update(ticketId, { $inc: { timeSpent: seconds } });
   },
-  clockIn() {
-    if (!this.userId) throw new Meteor.Error('not-authorized');
-    Sessions.insert({ userId: this.userId, startTime: new Date(), endTime: null });
-  },
-  clockOut() {
-    if (!this.userId) throw new Meteor.Error('not-authorized');
-    const session = Sessions.findOne({ userId: this.userId, endTime: null });
-    if (session) {
-      Sessions.update(session._id, { $set: { endTime: new Date() } });
-    }
-  },
   updateTicketStart(ticketId, now) {
     check(ticketId, String);
     check(now, Number);
@@ -160,5 +154,87 @@ Meteor.methods({
         });
       }
     });
+  },
+  async clockEventStart(teamId) {
+    check(teamId, String);
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    // End any previous open clock event for this user/team
+    await ClockEvents.updateAsync({ userId: this.userId, teamId, endTime: null }, { $set: { endTime: new Date() } }, { multi: true });
+    // Start a new clock event
+    const clockEventId = await ClockEvents.insertAsync({
+      userId: this.userId,
+      teamId,
+      startTimestamp: Date.now(),
+      accumulatedTime: 0,
+      endTime: null
+    });
+    return clockEventId;
+  },
+  async clockEventStop(teamId) {
+    check(teamId, String);
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    const clockEvent = await ClockEvents.findOneAsync({ userId: this.userId, teamId, endTime: null });
+    if (clockEvent && clockEvent.startTimestamp) {
+      const now = Date.now();
+      const elapsed = Math.floor((now - clockEvent.startTimestamp) / 1000);
+      const prev = clockEvent.accumulatedTime || 0;
+      await ClockEvents.updateAsync(clockEvent._id, {
+        $set: { accumulatedTime: prev + elapsed, endTime: new Date() },
+        $unset: { startTimestamp: '' }
+      });
+    }
+  },
+  async clockEventAddTicket(clockEventId, ticketId, now) {
+    check(clockEventId, String);
+    check(ticketId, String);
+    check(now, Number);
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    // Check if ticket entry already exists in the clock event
+    const clockEvent = await ClockEvents.findOneAsync(clockEventId);
+    if (!clockEvent) return;
+    const existing = (clockEvent.tickets || []).find(t => t.ticketId === ticketId);
+    if (existing) {
+      // If already exists and is stopped, start it again by setting startTimestamp
+      await ClockEvents.updateAsync(
+        { _id: clockEventId, 'tickets.ticketId': ticketId },
+        { $set: { 'tickets.$.startTimestamp': now } }
+      );
+    } else {
+      // Otherwise, add a new ticket entry
+      await ClockEvents.updateAsync(clockEventId, {
+        $push: {
+          tickets: {
+            ticketId,
+            startTimestamp: now,
+            accumulatedTime: 0
+          }
+        }
+      });
+    }
+  },
+  async clockEventStopTicket(clockEventId, ticketId, now) {
+    check(clockEventId, String);
+    check(ticketId, String);
+    check(now, Number);
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    const clockEvent = await ClockEvents.findOneAsync(clockEventId);
+    if (!clockEvent || !clockEvent.tickets) return;
+    const ticketEntry = clockEvent.tickets.find(t => t.ticketId === ticketId && t.startTimestamp);
+    if (ticketEntry) {
+      const elapsed = Math.floor((now - ticketEntry.startTimestamp) / 1000);
+      const prev = ticketEntry.accumulatedTime || 0;
+      // Update the ticket entry in the tickets array
+      await ClockEvents.updateAsync(
+        { _id: clockEventId, 'tickets.ticketId': ticketId },
+        {
+          $set: {
+            'tickets.$.accumulatedTime': prev + elapsed
+          },
+          $unset: {
+            'tickets.$.startTimestamp': ''
+          }
+        }
+      );
+    }
   },
 });

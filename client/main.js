@@ -1,6 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
-import { Teams, Tickets } from '../collections.js';
+import { Teams, Tickets, ClockEvents } from '../collections.js';
 
 import './main.html';
 
@@ -187,6 +187,7 @@ Template.tickets.onCreated(function () {
   this.timerInterval = null;
   this.autorun(() => {
     this.subscribe('userTeams');
+    this.subscribe('clockEventsForUser');
     // If no team is selected, default to the first team
     if (!this.selectedTeamId.get()) {
       const firstTeam = Teams.findOne({ members: Meteor.userId() });
@@ -257,6 +258,13 @@ Template.tickets.helpers({
   clockedIn() {
     return Template.instance().clockedIn.get();
   },
+  selectedTeamId() {
+    return Template.instance().selectedTeamId.get();
+  },
+  isClockedInForTeam(teamId) {
+    const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
+    return !!clockEvent;
+  },
 });
 
 Template.tickets.events({
@@ -295,6 +303,9 @@ Template.tickets.events({
     const ticketId = e.currentTarget.dataset.id;
     const isActive = t.activeTicketId.get() === ticketId;
     const ticket = Tickets.findOne(ticketId);
+    const teamId = t.selectedTeamId.get();
+    // Check if user is clocked in for this team
+    const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
     if (!isActive) {
       // Start the timer: set startTimestamp and activate this ticket
       t.activeTicketId.set(ticketId);
@@ -304,6 +315,14 @@ Template.tickets.events({
           alert('Failed to start timer: ' + err.reason);
         }
       });
+      // If user is clocked in, add a ticket timing entry to the clock event
+      if (clockEvent) {
+        Meteor.call('clockEventAddTicket', clockEvent._id, ticketId, now, (err) => {
+          if (err) {
+            alert('Failed to add ticket to clock event: ' + err.reason);
+          }
+        });
+      }
       if (t.timerInterval) clearInterval(t.timerInterval);
       t.timerInterval = setInterval(() => {
         Tracker.flush(); // Force Blaze to re-render for live timer
@@ -317,6 +336,14 @@ Template.tickets.events({
             alert('Failed to stop timer: ' + err.reason);
           }
         });
+        // If user is clocked in, stop the ticket timing in the clock event
+        if (clockEvent) {
+          Meteor.call('clockEventStopTicket', clockEvent._id, ticketId, now, (err) => {
+            if (err) {
+              alert('Failed to stop ticket in clock event: ' + err.reason);
+            }
+          });
+        }
       }
       t.activeTicketId.set(null);
       if (t.timerInterval) clearInterval(t.timerInterval);
@@ -338,5 +365,21 @@ Template.tickets.events({
         if (!err) t.clockedIn.set(false);
       });
     }
+  },
+  'click #clockInBtn'(e, t) {
+    const teamId = t.selectedTeamId.get();
+    Meteor.call('clockEventStart', teamId, (err, clockEventId) => {
+      if (err) {
+        alert('Failed to clock in: ' + err.reason);
+      }
+    });
+  },
+  'click #clockOutBtn'(e, t) {
+    const teamId = t.selectedTeamId.get();
+    Meteor.call('clockEventStop', teamId, (err) => {
+      if (err) {
+        alert('Failed to clock out: ' + err.reason);
+      }
+    });
   },
 });

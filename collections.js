@@ -10,3 +10,15 @@ export const Sessions = new Mongo.Collection('sessions');
 //   startTime: Date,
 //   endTime: Date
 // }
+
+export const ClockEvents = new Mongo.Collection('clockevents');
+// ClockEvents schema:
+// {
+//   _id,
+//   userId,
+//   teamId,
+//   ticketId, // optional, if clocking in on a specific ticket
+//   startTimestamp,
+//   accumulatedTime,
+//   endTime // null if still clocked in
+// }
