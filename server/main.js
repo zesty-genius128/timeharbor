@@ -47,6 +47,11 @@ Meteor.publish('teamMembers', function (teamIds) {
   return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
 });
 
+Meteor.publish('teamTickets', function (teamId) {
+  check(teamId, String);
+  return Tickets.find({ teamId });
+});
+
 Meteor.methods({
   async joinTeamWithCode(teamCode) {
     check(teamCode, String);
@@ -103,5 +108,57 @@ Meteor.methods({
     check(userIds, [String]);
     const users = await Meteor.users.find({ _id: { $in: userIds } }).fetchAsync();
     return users.map(user => ({ id: user._id, username: user.username }));
+  },
+  async createTicket({ teamId, title, github, accumulatedTime }) {
+    check(teamId, String);
+    check(title, String);
+    check(github, String);
+    check(accumulatedTime, Number);
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    return await Tickets.insertAsync({
+      teamId,
+      title,
+      github,
+      accumulatedTime,
+      createdBy: this.userId,
+      createdAt: new Date(),
+    });
+  },
+  incrementTicketTime(ticketId, seconds) {
+    check(ticketId, String);
+    check(seconds, Number);
+    Tickets.update(ticketId, { $inc: { timeSpent: seconds } });
+  },
+  clockIn() {
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    Sessions.insert({ userId: this.userId, startTime: new Date(), endTime: null });
+  },
+  clockOut() {
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    const session = Sessions.findOne({ userId: this.userId, endTime: null });
+    if (session) {
+      Sessions.update(session._id, { $set: { endTime: new Date() } });
+    }
+  },
+  updateTicketStart(ticketId, now) {
+    check(ticketId, String);
+    check(now, Number);
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    return Tickets.updateAsync(ticketId, { $set: { startTimestamp: now } });
+  },
+  updateTicketStop(ticketId, now) {
+    check(ticketId, String);
+    check(now, Number);
+    if (!this.userId) throw new Meteor.Error('not-authorized');
+    return Tickets.findOneAsync(ticketId).then(ticket => {
+      if (ticket && ticket.startTimestamp) {
+        const elapsed = Math.floor((now - ticket.startTimestamp) / 1000);
+        const prev = ticket.accumulatedTime || 0;
+        return Tickets.updateAsync(ticketId, {
+          $set: { accumulatedTime: prev + elapsed },
+          $unset: { startTimestamp: '' }
+        });
+      }
+    });
   },
 });

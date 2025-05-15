@@ -1,6 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
-import { Teams } from '../collections.js';
+import { Teams, Tickets } from '../collections.js';
 
 import './main.html';
 
@@ -132,7 +132,9 @@ Template.teams.helpers({
     return Template.instance().showCreateTeam.get();
   },
   userTeams() {
-    return Teams.find({ members: Meteor.userId() });
+    const teams = Teams.find({ members: Meteor.userId() }).fetch();
+    console.log(teams);
+    return teams;
   },
   selectedTeam() {
     const id = Template.instance().selectedTeamId.get();
@@ -174,5 +176,167 @@ Template.teams.events({
   'click #backToTeams'(e, t) {
     t.selectedTeamId.set(null);
     t.selectedTeamUsers.set([]); // Clear users when going back
+  },
+});
+
+Template.tickets.onCreated(function () {
+  this.showCreateTicketForm = new ReactiveVar(false);
+  this.selectedTeamId = new ReactiveVar(null);
+  this.activeTicketId = new ReactiveVar(null);
+  this.clockedIn = new ReactiveVar(false);
+  this.timerInterval = null;
+  this.autorun(() => {
+    this.subscribe('userTeams');
+    // If no team is selected, default to the first team
+    if (!this.selectedTeamId.get()) {
+      const firstTeam = Teams.findOne({ members: Meteor.userId() });
+      if (firstTeam) {
+        this.selectedTeamId.set(firstTeam._id);
+      }
+    }
+    const teamId = this.selectedTeamId.get();
+    if (teamId) {
+      this.subscribe('teamTickets', teamId);
+    }
+  });
+});
+
+Template.tickets.helpers({
+  userTeams() {
+    // Return the list of teams the user is in
+    const teams = Teams.find({members: Meteor.userId()}).fetch();
+    console.log(teams);
+    return teams;
+  },
+  isSelectedTeam(teamId) {
+    // Return 'selected' if this team is the selected one
+    return Template.instance().selectedTeamId && Template.instance().selectedTeamId.get() === teamId ? 'selected' : '';
+  },
+  showCreateTicketForm() {
+    return Template.instance().showCreateTicketForm.get();
+  },
+  tickets() {
+    const teamId = Template.instance().selectedTeamId.get();
+    if (!teamId) return [];
+    const activeTicketId = Template.instance().activeTicketId.get();
+    const now = Date.now();
+    return Tickets.find({ teamId }).fetch().map(ticket => {
+      // If this ticket is active and has a startTimestamp, show live time
+      if (ticket._id === activeTicketId && ticket.startTimestamp) {
+        const elapsed = Math.floor((now - ticket.startTimestamp) / 1000);
+        return {
+          ...ticket,
+          displayTime: (ticket.accumulatedTime || 0) + elapsed
+        };
+      } else {
+        return {
+          ...ticket,
+          displayTime: ticket.accumulatedTime || 0
+        };
+      }
+    });
+  },
+  isActive(ticketId) {
+    return Template.instance().activeTicketId.get() === ticketId;
+  },
+  formatTime(time) {
+    if (!time) return '0:00:00';
+    const h = Math.floor(time / 3600);
+    const m = Math.floor((time % 3600) / 60);
+    const s = time % 60;
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  },
+  githubLink(github) {
+    if (!github) return '';
+    if (github.startsWith('http')) return github;
+    return `https://github.com/${github}`;
+  },
+  isClockedIn() {
+    return Template.instance().clockedIn.get();
+  },
+  clockedIn() {
+    return Template.instance().clockedIn.get();
+  },
+});
+
+Template.tickets.events({
+  'change #teamSelect'(e, t) {
+    t.selectedTeamId.set(e.target.value);
+  },
+  'click #showCreateTicketForm'(e, t) {
+    t.showCreateTicketForm.set(true);
+  },
+  'click #cancelCreateTicket'(e, t) {
+    t.showCreateTicketForm.set(false);
+  },
+  'submit #createTicketForm'(e, t) {
+    e.preventDefault();
+    const teamId = t.selectedTeamId.get();
+    const title = e.target.title.value.trim();
+    const github = e.target.github.value.trim();
+    const hours = parseInt(e.target.hours.value) || 0;
+    const minutes = parseInt(e.target.minutes.value) || 0;
+    const seconds = parseInt(e.target.seconds.value) || 0;
+    const accumulatedTime = hours * 3600 + minutes * 60 + seconds;
+    if (!title) {
+      alert('Ticket title is required.');
+      return;
+    }
+    debugger;
+    Meteor.call('createTicket', { teamId, title, github, accumulatedTime }, (err) => {
+      if (!err) {
+        t.showCreateTicketForm.set(false);
+      } else {
+        alert('Error creating ticket: ' + err.reason);
+      }
+    });
+  },
+  'click .activate-ticket'(e, t) {
+    const ticketId = e.currentTarget.dataset.id;
+    const isActive = t.activeTicketId.get() === ticketId;
+    const ticket = Tickets.findOne(ticketId);
+    if (!isActive) {
+      // Start the timer: set startTimestamp and activate this ticket
+      t.activeTicketId.set(ticketId);
+      const now = Date.now();
+      Meteor.call('updateTicketStart', ticketId, now, (err) => {
+        if (err) {
+          alert('Failed to start timer: ' + err.reason);
+        }
+      });
+      if (t.timerInterval) clearInterval(t.timerInterval);
+      t.timerInterval = setInterval(() => {
+        Tracker.flush(); // Force Blaze to re-render for live timer
+      }, 1000);
+    } else {
+      // Stop the timer: calculate elapsed, add to accumulatedTime, clear startTimestamp
+      if (ticket && ticket.startTimestamp) {
+        const now = Date.now();
+        Meteor.call('updateTicketStop', ticketId, now, (err) => {
+          if (err) {
+            alert('Failed to stop timer: ' + err.reason);
+          }
+        });
+      }
+      t.activeTicketId.set(null);
+      if (t.timerInterval) clearInterval(t.timerInterval);
+    }
+  },
+  'click #clockInOut'(e, t) {
+    const ticketId = t.activeTicketId.get();
+    const clockedIn = t.clockedIn.get();
+    if (!ticketId) {
+      alert('Select a ticket to clock in/out.');
+      return;
+    }
+    if (!clockedIn) {
+      Meteor.call('clockIn', ticketId, (err) => {
+        if (!err) t.clockedIn.set(true);
+      });
+    } else {
+      Meteor.call('clockOut', ticketId, (err) => {
+        if (!err) t.clockedIn.set(false);
+      });
+    }
   },
 });

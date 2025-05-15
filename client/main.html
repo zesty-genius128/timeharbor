@@ -73,7 +73,53 @@
 
 <template name="tickets">
   <h3>Tickets</h3>
-  <p>{{message}}</p>
+  {{#if userTeams.length}}
+    <div class="tickets-controls">
+      <label for="teamSelect">Select Team:</label>
+      <select id="teamSelect">
+        {{#each userTeams}}
+          {{!-- Move the conditional outside the attribute --}}
+          <option value="{{_id}}" {{isSelectedTeam _id}}>{{name}}</option>
+        {{/each}}
+      </select>
+      <button id="showCreateTicketForm">Create Ticket</button>
+    </div>
+    {{#if showCreateTicketForm}}
+      <form id="createTicketForm" class="ticket-form">
+        <input type="text" name="title" placeholder="Ticket Title" required />
+        <input type="text" name="github" placeholder="GitHub Issue Link or Number" />
+        <div class="time-inputs">
+          <input type="number" name="hours" min="0" placeholder="Hours" />
+          <input type="number" name="minutes" min="0" max="59" placeholder="Minutes" />
+          <input type="number" name="seconds" min="0" max="59" placeholder="Seconds" />
+        </div>
+        <button type="submit">Create</button>
+        <button type="button" id="cancelCreateTicket">Cancel</button>
+      </form>
+    {{/if}}
+    <div class="tickets-list">
+      {{#each tickets}}
+        <div class="ticket-box {{#if isActive _id}}active{{/if}}">
+          <div class="ticket-title">{{title}}</div>
+          <div class="ticket-time">{{formatTime displayTime}}</div>
+          {{#if github}}
+            <a href="{{githubLink github}}" target="_blank" class="github-link">GitHub</a>
+          {{/if}}
+          <button class="activate-ticket" data-id="{{_id}}">
+            {{#if isActive _id}}
+              Stop
+            {{else}}
+              Start
+            {{/if}}
+          </button>
+        </div>
+      {{/each}}
+    </div>
+  {{else}}
+    <div class="no-teams-msg">
+      <p>You must join a team to start creating tickets.</p>
+    </div>
+  {{/if}}
 </template>
 
 <template name="joinTeam">
