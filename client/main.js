@@ -182,6 +182,7 @@ Template.teams.events({
 Template.tickets.onCreated(function () {
   this.showCreateTicketForm = new ReactiveVar(false);
   this.selectedTeamId = new ReactiveVar(null);
+  // Restore last active ticket if it is still running
   this.activeTicketId = new ReactiveVar(null);
   this.clockedIn = new ReactiveVar(false);
   this.timerInterval = null;
@@ -198,6 +199,13 @@ Template.tickets.onCreated(function () {
     const teamId = this.selectedTeamId.get();
     if (teamId) {
       this.subscribe('teamTickets', teamId);
+      // Restore active ticket if any ticket for this team has a startTimestamp
+      const runningTicket = Tickets.findOne({ teamId, startTimestamp: { $exists: true } });
+      if (runningTicket) {
+        this.activeTicketId.set(runningTicket._id);
+      } else {
+        this.activeTicketId.set(null);
+      }
     }
   });
 });
@@ -241,7 +249,7 @@ Template.tickets.helpers({
     return Template.instance().activeTicketId.get() === ticketId;
   },
   formatTime(time) {
-    if (!time) return '0:00:00';
+    if (typeof time !== 'number' || isNaN(time)) return '0:00:00';
     const h = Math.floor(time / 3600);
     const m = Math.floor((time % 3600) / 60);
     const s = time % 60;
@@ -381,5 +389,76 @@ Template.tickets.events({
         alert('Failed to clock out: ' + err.reason);
       }
     });
+  },
+});
+
+Template.home.onCreated(function () {
+  this.autorun(() => {
+    this.subscribe('userTeams');
+    this.subscribe('clockEventsForUser');
+    // Subscribe to all clock events for teams the user leads
+    const leaderTeams = Teams.find({ leader: Meteor.userId() }).fetch();
+    const teamIds = leaderTeams.map(t => t._id);
+    if (teamIds.length) {
+      this.subscribe('clockEventsForTeams', teamIds);
+    }
+    // Subscribe to all users in those teams for username display
+    const allMembers = Array.from(new Set(leaderTeams.flatMap(t => t.members)));
+    if (allMembers.length) {
+      this.subscribe('usersByIds', allMembers);
+    }
+  });
+  // Live update for timers
+  this.timerInterval = setInterval(() => {
+    Tracker.flush();
+  }, 1000);
+});
+
+Template.home.helpers({
+  leaderTeams() {
+    return Teams.find({ leader: Meteor.userId() }).fetch();
+  },
+  teamClockEvents(teamId) {
+    return ClockEvents.find({ teamId }).fetch();
+  },
+  allClockEvents() {
+    // Show all clock events for teams the user leads, flat list, most recent first
+    const leaderTeams = Teams.find({ leader: Meteor.userId() }).fetch();
+    const teamIds = leaderTeams.map(t => t._id);
+    return ClockEvents.find({ teamId: { $in: teamIds } }, { sort: { startTimestamp: -1 } }).fetch();
+  },
+  teamName(teamId) {
+    const team = Teams.findOne(teamId);
+    return team && team.name ? team.name : teamId;
+  },
+  userName(userId) {
+    const user = Meteor.users && Meteor.users.findOne(userId);
+    return user && user.username ? user.username : userId;
+  },
+  clockEventTotalTime(clockEvent) {
+    let total = 0;
+    const now = Date.now();
+    (clockEvent.tickets || []).forEach(t => {
+      total += (t.accumulatedTime || 0);
+      if (t.startTimestamp) {
+        total += Math.floor((now - t.startTimestamp) / 1000);
+      }
+    });
+    return total;
+  },
+  ticketTotalTime(ticket) {
+    let total = ticket.accumulatedTime || 0;
+    if (ticket.startTimestamp) {
+      total += Math.floor((Date.now() - ticket.startTimestamp) / 1000);
+    }
+    console.log('Ticket total time:', total);
+    return total;
+  },
+  formatTime(time) {
+    const t = Number(time) || 0;
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = t % 60;
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   },
 });

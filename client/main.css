@@ -166,3 +166,45 @@ footer {
 .activate-ticket:hover {
   background: #1d4ed8;
 }
+
+.clockevents-list {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0 0 0;
+}
+
+.clockevents-list > li {
+  background: #f8f9fa;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  font-size: 1rem;
+  color: #334155;
+}
+
+.clockevents-list > li strong {
+  color: #1e293b;
+}
+
+.clockevents-list ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.clockevents-list ul li {
+  background: #e0e7ef;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  color: #475569;
+  box-shadow: none;
+}
+
+.team-clockevents, .team-clockevents h4, .team-clockevents ul, .team-clockevents li, .team-clockevents ul ul, .team-clockevents ul ul li {
+  display: none !important;
+}

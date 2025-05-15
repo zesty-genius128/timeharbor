@@ -25,7 +25,22 @@
 
 <template name="home">
   <h3>Home</h3>
-  <p>{{message}}</p>
+  <ul class="clockevents-list">
+    {{#each allClockEvents}}
+      <li>
+        <strong>Team:</strong> {{teamName teamId}}<br/>
+        <strong>User:</strong> {{userName userId}}<br/>
+        <strong>Total Time:</strong> {{formatTime (clockEventTotalTime this)}}
+        <ul>
+          {{#each tickets}}
+            <li>
+              Time: {{formatTime (ticketTotalTime this)}}
+            </li>
+          {{/each}}
+        </ul>
+      </li>
+    {{/each}}
+  </ul>
 </template>
 
 <template name="teams">

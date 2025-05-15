@@ -57,6 +57,16 @@ Meteor.publish('clockEventsForUser', function () {
   return ClockEvents.find({ userId: this.userId });
 });
 
+Meteor.publish('clockEventsForTeams', function (teamIds) {
+  check(teamIds, [String]);
+  return ClockEvents.find({ teamId: { $in: teamIds } });
+});
+
+Meteor.publish('usersByIds', function (userIds) {
+  check(userIds, [String]);
+  return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
+});
+
 Meteor.methods({
   async joinTeamWithCode(teamCode) {
     check(teamCode, String);
