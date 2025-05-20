@@ -33,38 +33,50 @@ Meteor.startup(async () => {
 });
 
 Meteor.publish('userTeams', function () {
+  // Only publish teams the user is a member of
   return Teams.find({ members: this.userId });
 });
 
 Meteor.publish('teamDetails', function (teamId) {
-  return Teams.find({ _id: teamId });
+  // Only publish team details if the user is a member
+  return Teams.find({ _id: teamId, members: this.userId });
 });
 
 Meteor.publish('teamMembers', function (teamIds) {
   check(teamIds, [String]);
-  const teams = Teams.find({ _id: { $in: teamIds } }).fetch();
+  // Only allow if user is a member of all requested teams
+  const teams = Teams.find({ _id: { $in: teamIds }, members: this.userId }).fetch();
   const userIds = Array.from(new Set(teams.flatMap(team => team.members)));
   return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
 });
 
 Meteor.publish('teamTickets', function (teamId) {
   check(teamId, String);
-  return Tickets.find({ teamId });
+  // Only publish tickets for this team that were created by the current user
+  return Tickets.find({ teamId, createdBy: this.userId });
 });
 
 Meteor.publish('clockEventsForUser', function () {
   if (!this.userId) return this.ready();
+  // Only publish this user's own clock events
   return ClockEvents.find({ userId: this.userId });
 });
 
 Meteor.publish('clockEventsForTeams', function (teamIds) {
   check(teamIds, [String]);
-  return ClockEvents.find({ teamId: { $in: teamIds } });
+  // Only publish clock events for teams the user leads
+  const leaderTeams = Teams.find({ leader: this.userId, _id: { $in: teamIds } }).fetch();
+  const allowedTeamIds = leaderTeams.map(t => t._id);
+  return ClockEvents.find({ teamId: { $in: allowedTeamIds } });
 });
 
 Meteor.publish('usersByIds', function (userIds) {
   check(userIds, [String]);
-  return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
+  // Only publish users that are in teams the current user is a member or leader of
+  const userTeams = Teams.find({ $or: [{ members: this.userId }, { leader: this.userId }] }).fetch();
+  const allowedUserIds = Array.from(new Set(userTeams.flatMap(team => team.members.concat([team.leader]))));
+  const filteredUserIds = userIds.filter(id => allowedUserIds.includes(id));
+  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { username: 1 } });
 });
 
 Meteor.methods({
@@ -80,6 +92,8 @@ Meteor.methods({
     if (team.members.includes(this.userId)) {
       throw new Meteor.Error('already-member', 'You are already a member of this team');
     }
+    // Prevent joining if the team is private or has restrictions (future-proofing)
+    // if (team.isPrivate) throw new Meteor.Error('not-authorized', 'This team is private');
     await Teams.updateAsync(team._id, { $push: { members: this.userId } });
     return team._id;
   },
@@ -130,6 +144,9 @@ Meteor.methods({
     check(github, String);
     check(accumulatedTime, Number);
     if (!this.userId) throw new Meteor.Error('not-authorized');
+    // Only allow creating a ticket if the user is a member of the team
+    const team = await Teams.findOneAsync({ _id: teamId, members: this.userId });
+    if (!team) throw new Meteor.Error('not-authorized', 'You are not a member of this team');
     return await Tickets.insertAsync({
       teamId,
       title,

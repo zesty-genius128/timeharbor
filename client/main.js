@@ -41,15 +41,6 @@ Template.body.helpers({
 });
 
 Template.authPage.events({
-  'click #joinTeam'() {
-    currentScreen.set('joinTeam');
-  },
-  'click #createParticipant'() {
-    currentScreen.set('createParticipant');
-  },
-  'click #createTeam'() {
-    currentScreen.set('createTeam');
-  },
   'click #signup'(event) {
     event.preventDefault();
 
@@ -102,6 +93,7 @@ Template.authPage.events({
 
 Template.teams.onCreated(function () {
   this.showCreateTeam = new ReactiveVar(false);
+  this.showJoinTeam = new ReactiveVar(false);
   this.selectedTeamId = new ReactiveVar(null);
   this.selectedTeamUsers = new ReactiveVar([]);
   this.autorun(() => {
@@ -131,9 +123,13 @@ Template.teams.helpers({
   showCreateTeam() {
     return Template.instance().showCreateTeam.get();
   },
+  showJoinTeam() {
+    return Template.instance().showJoinTeam.get();
+  },
   userTeams() {
+    console.log('My id:', Meteor.userId());
     const teams = Teams.find({ members: Meteor.userId() }).fetch();
-    console.log(teams);
+    console.log('My teams:', teams);
     return teams;
   },
   selectedTeam() {
@@ -153,7 +149,14 @@ Template.teams.helpers({
 
 Template.teams.events({
   'click #showCreateTeamForm'(e, t) {
+    console.log('Create team clicked');
     t.showCreateTeam.set(true);
+    t.showJoinTeam && t.showJoinTeam.set(false);
+  },
+  'click #showJoinTeamForm'(e, t) {
+    console.log('Join team clicked');
+    t.showJoinTeam.set(true);
+    t.showCreateTeam && t.showCreateTeam.set(false);
   },
   'click #cancelCreateTeam'(e, t) {
     t.showCreateTeam.set(false);
@@ -166,6 +169,17 @@ Template.teams.events({
         t.showCreateTeam.set(false);
       } else {
         alert('Error creating team: ' + err.reason);
+      }
+    });
+  },
+  'submit #joinTeamForm'(e, t) {
+    e.preventDefault();
+    const teamCode = e.target.teamCode.value;
+    Meteor.call('joinTeamWithCode', teamCode, (err) => {
+      if (!err) {
+        t.showJoinTeam.set(false);
+      } else {
+        alert('Error joining team: ' + err.reason);
       }
     });
   },
@@ -213,8 +227,9 @@ Template.tickets.onCreated(function () {
 Template.tickets.helpers({
   userTeams() {
     // Return the list of teams the user is in
+    console.log('My id:', Meteor.userId());
     const teams = Teams.find({members: Meteor.userId()}).fetch();
-    console.log(teams);
+    console.log('My teams:', teams);
     return teams;
   },
   isSelectedTeam(teamId) {
