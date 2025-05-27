@@ -66,8 +66,15 @@ Template.authPage.events({
         console.error('Error creating user:', err);
         alert('Failed to create user: ' + err.reason);
       } else {
-        alert('User created successfully!');
-        currentScreen.set('mainLayout');
+        // Immediately log in as the new user
+        Meteor.loginWithPassword(username, password, (loginErr) => {
+          if (loginErr) {
+            alert('Login failed: ' + loginErr.reason);
+          } else {
+            alert('User created and logged in successfully!');
+            currentScreen.set('mainLayout');
+          }
+        });
       }
     });
   },
