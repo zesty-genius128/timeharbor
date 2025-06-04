@@ -1,5 +1,5 @@
 <head>
-  <title>Shift & Ticket Time Tracker</title>
+  <title>TimeHarbor - Your Personal Time Tracking Assistant</title>
   <link rel="stylesheet" href="/client/tailwind.generated.css">
 </head>
 
@@ -10,28 +10,28 @@
 <template name="mainLayout">
   <header class="navbar bg-base-100 shadow mb-6">
     <div class="flex-1">
-      <h2 class="text-2xl font-bold">Dashboard</h2>
+      <h2 class="text-2xl font-bold">TimeHarbor</h2>
     </div>
     <nav class="flex gap-4">
       <a href="/" class="btn btn-ghost">Home</a>
       <a href="/teams" class="btn btn-ghost">Teams</a>
-      <a href="/tickets" class="btn btn-ghost">Tickets</a>
+      <a href="/tickets" class="btn btn-ghost">Projects</a>
     </nav>
   </header>
   <main class="container mx-auto px-4">
     {{> Template.dynamic template=main}}
   </main>
   <footer class="footer p-4 bg-base-100 text-base-content mt-8">
-    <p>&copy; 2025 Shift & Ticket Time Tracker</p>
+    <p>&copy; 2025 TimeHarbor - Your Personal Time Tracking Assistant</p>
   </footer>
 </template>
 
 <template name="home">
-  <h3 class="text-xl font-semibold mb-4">Home</h3>
+  <h3 class="text-xl font-semibold mb-4">Your Time Overview</h3>
   <ul class="space-y-4">
     {{#each allClockEvents}}
       <li class="card bg-base-100 shadow p-4">
-        <div class="mb-2"><span class="font-bold">Team:</span> {{teamName teamId}}</div>
+        <div class="mb-2"><span class="font-bold">Project:</span> {{teamName teamId}}</div>
         <div class="mb-2"><span class="font-bold">User:</span> {{userName userId}}</div>
         <div class="mb-2"><span class="font-bold">Total Time:</span> <span class="badge badge-primary">{{formatTime (clockEventTotalTime this)}}</span></div>
         <ul class="ml-4 list-disc">
@@ -47,16 +47,16 @@
 </template>
 
 <template name="teams">
-  <h3 class="text-xl font-semibold mb-4">Teams</h3>
+  <h3 class="text-xl font-semibold mb-4">Projects & Teams</h3>
   {{#if selectedTeam}}
     <div class="card bg-base-100 shadow p-6 mb-6">
-      <button id="backToTeams" class="btn btn-outline mb-4">&larr; Back to Teams</button>
+      <button id="backToTeams" class="btn btn-outline mb-4">&larr; Back to Projects</button>
       <h4 class="text-lg font-bold mb-2">{{selectedTeam.name}}</h4>
       <div class="flex items-center gap-2 mb-4">
-        <span class="badge badge-info">Code: {{selectedTeam.code}}</span>
-        <button id="copyTeamCode" class="btn btn-sm btn-outline">Copy Team Code</button>
+        <span class="badge badge-info">Join Code: {{selectedTeam.code}}</span>
+        <button id="copyTeamCode" class="btn btn-sm btn-outline">Copy Code</button>
       </div>
-      <h5 class="font-semibold mb-2">Members:</h5>
+      <h5 class="font-semibold mb-2">Collaborators:</h5>
       <div class="flex flex-wrap gap-2">
         {{#each selectedTeam.members}}
           <div class="badge badge-neutral">{{this.username}}</div>
@@ -65,23 +65,23 @@
     </div>
   {{else}}
     <div class="flex gap-4 mb-4">
-      <button id="showCreateTeamForm" class="btn btn-primary">Create Team</button>
-      <button id="showJoinTeamForm" class="btn btn-secondary">Join Team</button>
+      <button id="showCreateTeamForm" class="btn btn-primary">Create Project</button>
+      <button id="showJoinTeamForm" class="btn btn-secondary">Join Project</button>
     </div>
     {{#if showCreateTeam}}
       <form id="createTeamForm" class="card bg-base-100 shadow p-4 mb-4 flex flex-col gap-2">
-        <input type="text" name="teamName" placeholder="Team Name" class="input input-bordered" required />
+        <input type="text" name="teamName" placeholder="Project Name" class="input input-bordered" required />
         <div class="flex gap-2">
-          <button type="submit" class="btn btn-primary">Create Team</button>
+          <button type="submit" class="btn btn-primary">Create Project</button>
           <button type="button" id="cancelCreateTeam" class="btn btn-outline">Cancel</button>
         </div>
       </form>
     {{/if}}
     {{#if showJoinTeam}}
       <form id="joinTeamForm" class="card bg-base-100 shadow p-4 mb-4 flex flex-col gap-2">
-        <input type="text" name="teamCode" placeholder="Enter Team Code" class="input input-bordered" required />
+        <input type="text" name="teamCode" placeholder="Enter Project Code" class="input input-bordered" required />
         <div class="flex gap-2">
-          <button type="submit" class="btn btn-secondary">Join Team</button>
+          <button type="submit" class="btn btn-secondary">Join Project</button>
           <button type="button" id="cancelJoinTeam" class="btn btn-outline">Cancel</button>
         </div>
       </form>
@@ -97,28 +97,28 @@
 </template>
 
 <template name="tickets">
-  <h3 class="text-xl font-semibold mb-4">Tickets</h3>
+  <h3 class="text-xl font-semibold mb-4">My Activities & Tasks</h3>
   {{#if userTeams.length}}
     <div class="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-      <label for="teamSelect" class="label">Select Team:</label>
+      <label for="teamSelect" class="label">Select Project:</label>
       <select id="teamSelect" class="select select-bordered">
         {{#each userTeams}}
           <option value="{{_id}}" {{isSelectedTeam _id}}>{{name}}</option>
         {{/each}}
       </select>
-      <button id="showCreateTicketForm" class="btn btn-primary">Create Ticket</button>
+      <button id="showCreateTicketForm" class="btn btn-primary">Create Activity</button>
     </div>
     <div class="mb-4">
       {{#if isClockedInForTeam selectedTeamId}}
-        <button id="clockOutBtn" class="btn btn-error">Clock Out</button>
+        <button id="clockOutBtn" class="btn btn-error">Stop Session</button>
       {{else}}
-        <button id="clockInBtn" class="btn btn-success">Clock In</button>
+        <button id="clockInBtn" class="btn btn-success">Start Session</button>
       {{/if}}
     </div>
     {{#if showCreateTicketForm}}
       <form id="createTicketForm" class="card bg-base-100 shadow p-4 mb-4 flex flex-col gap-2">
-        <input type="text" name="title" placeholder="Ticket Title" class="input input-bordered" required />
-        <input type="text" name="github" placeholder="GitHub Issue Link or Number" class="input input-bordered" />
+        <input type="text" name="title" placeholder="Activity Title (e.g., 'Math Homework', 'Robot Assembly')" class="input input-bordered" required />
+        <input type="text" name="github" placeholder="Reference Link or Notes" class="input input-bordered" />
         <div class="flex gap-2">
           <input type="number" name="hours" min="0" placeholder="Hours" class="input input-bordered w-24" />
           <input type="number" name="minutes" min="0" max="59" placeholder="Minutes" class="input input-bordered w-24" />
@@ -136,7 +136,7 @@
           <div class="ticket-title text-lg font-bold mb-2">{{title}}</div>
           <div class="ticket-time mb-2"><span class="badge badge-primary">{{formatTime displayTime}}</span></div>
           {{#if github}}
-            <a href="{{githubLink github}}" target="_blank" class="link link-info">GitHub</a>
+            <a href="{{githubLink github}}" target="_blank" class="link link-info">Reference</a>
           {{/if}}
           <button class="activate-ticket btn btn-outline mt-2 w-full" data-id="{{_id}}">
             {{#if isActive _id}}
@@ -149,16 +149,16 @@
       {{/each}}
     </div>
   {{else}}
-    <div class="alert alert-warning mt-4">
-      <p>You must join a team to start creating tickets.</p>
+    <div class="alert alert-info mt-4">
+      <p>Create or join a project to start tracking your activities and time.</p>
     </div>
   {{/if}}
 </template>
 
 <template name="joinTeam">
-  <h3 class="text-xl font-semibold mb-4">Join a Team</h3>
+  <h3 class="text-xl font-semibold mb-4">Join a Project</h3>
   <form id="joinTeamForm" class="card bg-base-100 shadow p-4 flex flex-col gap-2">
-    <input type="text" name="teamCode" placeholder="Enter Team Code" class="input input-bordered" required />
+    <input type="text" name="teamCode" placeholder="Enter Project Code" class="input input-bordered" required />
     <button type="submit" class="btn btn-secondary">Join</button>
   </form>
 </template>
@@ -172,17 +172,17 @@
 </template>
 
 <template name="createTeam">
-  <h3 class="text-xl font-semibold mb-4">Create a Team</h3>
+  <h3 class="text-xl font-semibold mb-4">Create a Project</h3>
   <form id="createTeamForm" class="card bg-base-100 shadow p-4 flex flex-col gap-2">
-    <input type="text" name="teamName" placeholder="Enter Team Name" class="input input-bordered" required />
+    <input type="text" name="teamName" placeholder="Enter Project Name" class="input input-bordered" required />
     <input type="text" name="ownerName" placeholder="Enter Your Name" class="input input-bordered" required />
     <button type="submit" class="btn btn-primary">Create</button>
   </form>
 </template>
 
 <template name="authPage">
-  <h3 class="text-2xl font-bold mb-2">Welcome to Shift & Ticket Time Tracker</h3>
-  <p class="mb-4">Please log in or create an account to continue.</p>
+  <h3 class="text-2xl font-bold mb-2">Welcome to TimeHarbor</h3>
+  <p class="mb-4">Your personal time tracking assistant. Please log in or create an account to get started.</p>
   <div class="flex flex-col md:flex-row gap-6">
     <form id="loginForm" class="card bg-base-100 shadow p-4 flex flex-col gap-2 w-full md:w-1/2">
       <h4 class="text-lg font-semibold mb-2">Log In</h4>
