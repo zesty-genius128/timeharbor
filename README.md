@@ -1,20 +1,21 @@
-# Shift & Ticket Time Tracker
+# TimeHarbor
 
-A flexible, real-time time tracking platform for teams, organizations, and volunteers. Log work sessions, track time on individual tasks ("tickets"), and collaborate across teams with robust role management and audit features.
+A privacy-first time tracking and reflection tool that empowers individuals to track, reflect on, and selectively share how they spend their time. Designed as your personal assistant and coach, not a surveillance tool.
 
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Features](#features)
+- [Core Purpose](#core-purpose)
+- [Key Features](#key-features)
+- [Design Principles](#design-principles)
 - [User Roles](#user-roles)
+- [Use Cases](#use-cases)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
 - [Usage](#usage)
-- [Team & Project Management](#team--project-management)
-- [Editing & Audit](#editing--audit)
-- [Dashboard](#dashboard)
+- [Privacy & Sharing](#privacy--sharing)
 - [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
@@ -23,42 +24,66 @@ A flexible, real-time time tracking platform for teams, organizations, and volun
 
 ## Overview
 
-**Shift & Ticket Time Tracker** is a web-based application designed to help teams, organizations, and volunteers accurately log work sessions and track time spent on individual tasks or projects. The platform supports real-time collaboration, flexible team structures, and comprehensive audit trails, making it ideal for both professional and volunteer environments.
+**TimeHarbor** empowers individuals to take control of their time tracking and reflection. Whether you're an employee, student, mentor, volunteer, or nonprofit contributor, TimeHarbor helps you understand how you spend your time, reflect on your work, and communicate your value—all while keeping your data private by default.
 
 ---
 
-## Features
+## Core Purpose
 
-- **Session Tracking:** Start and end work sessions, capturing total time.
-- **Ticket/Issue Tracking:** Log time on multiple tickets/issues within a session.
-- **Descriptive Tickets:** Create and manage tickets with detailed titles and descriptions.
-- **Persistent Time Tracking:** Track time on tickets across multiple days and sessions.
-- **Prioritization:** Reorder and prioritize tickets/timers in the UI.
-- **Collaboration:** Multiple users can work on and log time to the same ticket.
-- **Views:** "My Issues" and "All Issues" for personal and team-wide tracking.
-- **Audit Logging:** All edits and updates are logged for transparency.
-- **Configurable Edit Windows:** Restrict editing to within a configurable reporting cycle (e.g., 1 or 2 weeks).
-- **Archiving:** Records become read-only after the reporting cycle.
-- **Mobile-Friendly:** Responsive design for desktop and mobile browsers.
-- **Team Hierarchies:** Support for sub-teams and flexible team structures.
+- **Empower individuals** (employees, students, mentors, volunteers) to track, reflect on, and communicate how they spend their time
+- **Facilitate transparent, user-controlled sharing** of time and activity data with leadership, sponsors, teachers, or peers—only when the individual chooses
+- **Act as a supportive coach and assistant**, focusing on personal growth and self-advocacy rather than surveillance
+
+---
+
+## Key Features
+
+1. **Clock In/Clock Out:** Simple, intuitive interface for starting and ending work or project sessions
+2. **Project & Objective Allocation:** Tag time entries to specific projects, objectives, or tasks (e.g., "robotics build," "grant writing," "classwork")
+3. **Personal Reflection & Notes:** Add context, challenges, and accomplishments to each time entry, helping communicate value and obstacles
+4. **User-Controlled Sharing:** All data remains private by default. Share with others (leaders, sponsors, teachers) only with explicit approval
+5. **Role Flexibility:** Designed for employees, students, mentors, volunteers, and nonprofit contributors
+6. **Reporting & Summaries:** Generate reports or summaries to share contributions, progress, or challenges as needed
+7. **Coach/Assistant Persona:** Supportive tool that helps with personal growth and positive communication
+
+---
+
+## Design Principles
+
+- **Privacy First:** No data is visible to others without user consent
+- **Empowerment:** Helps users advocate for themselves, communicate their value, and reflect on their work  
+- **Non-Intrusive:** Avoids any "big brother" feel; the assistant is a buddy, not a monitor
+- **Broad Applicability:** Useful for nonprofits, educational settings, and traditional workplaces
 
 ---
 
 ## User Roles
 
-- **Participant/Member/Contributor:** Logs time and works on tickets.
-- **Team Owner:** Manages a specific team, adds/removes members, oversees team activity.
-- **Super User/Admin:** Manages all teams, creates teams, assigns team owners, and oversees the entire system.
+- **Individual User:** Primary role - tracks personal time, reflects on work, controls data sharing
+- **Mentor/Leader:** Guides others while respecting their privacy; receives shared data only when offered
+- **Student/Learner:** Tracks time on assignments, projects, and extracurriculars for personal growth and optional sharing
+- **Volunteer/Contributor:** Logs hours and activities for personal records and grant/reporting purposes when needed
+
+---
+
+## Use Cases
+
+- **FIRST Robotics Teams:** Mentors and students log time spent on projects, then selectively share summaries with sponsors or teachers
+- **Nonprofits:** Volunteers track hours and activities, generating reports for grant applications or board meetings when needed
+- **Students:** Track time spent on assignments or extracurriculars, sharing with teachers or parents as desired
+- **Employees:** Document work on projects, reflect on challenges, and share progress with managers when ready
+- **Personal Development:** Individuals track time on learning, hobbies, or goals for self-reflection and improvement
 
 ---
 
 ## Tech Stack
 
-*The following stack is suggested and open to community input:*
+*The following stack supports the privacy-first, individual-focused approach:*
 
 - **Backend:** Meteor JS, MongoDB
-- **Frontend:** React
-- **Deployment:** Web-based (mobile and desktop), with future plans for app store releases
+- **Frontend:** Blaze Templates (with plans for React migration)
+- **Deployment:** Web-based (mobile and desktop responsive)
+- **Privacy:** User-controlled data sharing with no default visibility to others
 
 ---
 
@@ -66,8 +91,8 @@ A flexible, real-time time tracking platform for teams, organizations, and volun
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-org/shift-ticket-tracker.git
-   cd shift-ticket-tracker
+   git clone https://github.com/mieweb/timeharbor.git
+   cd timeharbor
    ```
 
 2. **Install dependencies:**
@@ -87,36 +112,22 @@ A flexible, real-time time tracking platform for teams, organizations, and volun
 
 ## Usage
 
-- **Create an Account:** Sign up as a new user or join via an invitation.
-- **Join or Create a Team:** Become a member of one or more teams.
-- **Start a Session:** Begin your work session and select or create tickets to log time.
-- **Log Time:** Track time on tickets, pause/resume as needed, and add descriptions.
-- **Review & Edit:** Edit your entries within the allowed reporting window.
-- **Collaborate:** Work with team members on shared tickets and view collective progress.
+- **Create Your Account:** Sign up as an individual user to start tracking your time privately
+- **Start a Personal Session:** Begin tracking your work, study, or project time with simple clock in/out
+- **Tag Your Activities:** Create projects or tasks to categorize your time (e.g., "Math Homework," "Robot Assembly," "Grant Writing")
+- **Add Reflections:** Include notes about challenges, accomplishments, or context for each session
+- **Control Your Privacy:** All data stays private unless you choose to share specific summaries or reports
+- **Generate Reports:** Create summaries to share with mentors, teachers, or supervisors when beneficial
 
 ---
 
-## Team & Project Management
+## Privacy & Sharing
 
-- **Team Owners** can create teams, invite members, and manage team settings.
-- **Super Users/Admins** can oversee all teams, manage team hierarchies, and assign roles.
-- **Participants** can join multiple teams and contribute to various projects.
-
----
-
-## Editing & Audit
-
-- **Edit Window:** Entries can be edited within a configurable period (e.g., 2 weeks).
-- **Audit Log:** All changes are tracked and viewable by team owners and admins.
-- **Archiving:** After the edit window, records are locked and archived for historical reference.
-
----
-
-## Dashboard
-
-- **Team Dashboard:** View total time contributed by all team members.
-- **Personal Dashboard:** Track your own time and ticket history.
-- **Reporting:** Export data for payroll, volunteer hours, or sponsor reporting.
+- **Private by Default:** Your time data is only visible to you
+- **User-Controlled Sharing:** You decide what to share, when, and with whom
+- **Selective Reports:** Generate specific summaries rather than sharing raw data
+- **No Surveillance:** The tool focuses on empowerment and self-reflection, not monitoring
+- **Data Ownership:** You maintain full control over your information
 
 ---
 
@@ -134,6 +145,6 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Contact
 
-For questions, support, or feature requests, please visit [ozwell.ai](https://ozwell.ai?utm_source=bluehive&utm_medium=chat&utm_campaign=bluehive-ai) or email [info@ozwell.ai](mailto:info@ozwell.ai).
+For questions, support, or feature requests, please create an issue in this repository or contact the TimeHarbor team.
 
 ---
