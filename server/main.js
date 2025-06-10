@@ -193,6 +193,7 @@ Meteor.methods({
       teamId,
       startTimestamp: Date.now(),
       accumulatedTime: 0,
+      tickets: [], // Initialize empty tickets array
       endTime: null
     });
     return clockEventId;
@@ -201,12 +202,39 @@ Meteor.methods({
     check(teamId, String);
     if (!this.userId) throw new Meteor.Error('not-authorized');
     const clockEvent = await ClockEvents.findOneAsync({ userId: this.userId, teamId, endTime: null });
-    if (clockEvent && clockEvent.startTimestamp) {
+    if (clockEvent) {
       const now = Date.now();
-      const elapsed = Math.floor((now - clockEvent.startTimestamp) / 1000);
-      const prev = clockEvent.accumulatedTime || 0;
+      
+      // Calculate and update accumulated time for the clock event
+      if (clockEvent.startTimestamp) {
+        const elapsed = Math.floor((now - clockEvent.startTimestamp) / 1000);
+        const prev = clockEvent.accumulatedTime || 0;
+        await ClockEvents.updateAsync(clockEvent._id, {
+          $set: { accumulatedTime: prev + elapsed }
+        });
+      }
+
+      // Stop all running tickets in this clock event
+      if (clockEvent.tickets) {
+        const updates = clockEvent.tickets
+          .filter(t => t.startTimestamp)
+          .map(async (ticket) => {
+            const elapsed = Math.floor((now - ticket.startTimestamp) / 1000);
+            const prev = ticket.accumulatedTime || 0;
+            return ClockEvents.updateAsync(
+              { _id: clockEvent._id, 'tickets.ticketId': ticket.ticketId },
+              {
+                $set: { 'tickets.$.accumulatedTime': prev + elapsed },
+                $unset: { 'tickets.$.startTimestamp': '' }
+              }
+            );
+          });
+        await Promise.all(updates);
+      }
+
+      // Mark clock event as ended
       await ClockEvents.updateAsync(clockEvent._id, {
-        $set: { accumulatedTime: prev + elapsed, endTime: new Date() },
+        $set: { endTime: new Date() },
         $unset: { startTimestamp: '' }
       });
     }

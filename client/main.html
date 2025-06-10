@@ -33,14 +33,37 @@
       <li class="card bg-base-100 shadow p-4">
         <div class="mb-2"><span class="font-bold">Project:</span> {{teamName teamId}}</div>
         <div class="mb-2"><span class="font-bold">User:</span> {{userName userId}}</div>
-        <div class="mb-2"><span class="font-bold">Total Time:</span> <span class="badge badge-primary">{{formatTime (clockEventTotalTime this)}}</span></div>
-        <ul class="ml-4 list-disc">
-          {{#each tickets}}
-            <li>
-              <span class="font-semibold">Time:</span> <span class="badge badge-secondary">{{formatTime (ticketTotalTime this)}}</span>
-            </li>
-          {{/each}}
-        </ul>
+        <div class="mb-2">
+          <span class="font-bold">Clock-in Period:</span>
+          {{#if endTime}}
+            {{formatDate startTimestamp}} - {{formatDate endTime}}
+          {{else}}
+            Started {{formatDate startTimestamp}} (Active)
+          {{/if}}
+        </div>
+        <div class="mb-2">
+          <span class="font-bold">Total Clock-in Time:</span>
+          <span class="badge badge-primary">{{formatTime (clockEventTotalTime this)}}</span>
+          {{#unless endTime}}
+            <span class="text-success ml-2">(Running)</span>
+          {{/unless}}
+        </div>
+        <div class="mt-4">
+          <div class="font-bold mb-2">Tickets worked on:</div>
+          <ul class="ml-4 list-disc space-y-2">
+            {{#each tickets}}
+              <li class="flex items-center justify-between">
+                <div>
+                  <span class="font-semibold">{{ticketTitle ticketId}}</span>
+                  {{#if startTimestamp}}
+                    <span class="text-success">(Active)</span>
+                  {{/if}}
+                </div>
+                <span class="badge badge-secondary">{{formatTime (ticketTotalTime this)}}</span>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
       </li>
     {{/each}}
   </ul>
@@ -108,7 +131,7 @@
       </select>
       <button id="showCreateTicketForm" class="btn btn-primary">Create Activity</button>
     </div>
-    <div class="mb-4">
+    <div class="mb-4 flex items-center gap-4">
       {{#if isClockedInForTeam selectedTeamId}}
         <button id="clockOutBtn" class="btn btn-error">Stop Session</button>
       {{else}}

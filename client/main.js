@@ -10,6 +10,10 @@ const currentTemplate = new ReactiveVar('home');
 // Reactive variable to track the current screen
 const currentScreen = new ReactiveVar('authPage');
 
+// Reactive variable to track current time for timers
+const currentTime = new ReactiveVar(Date.now());
+setInterval(() => currentTime.set(Date.now()), 1000);
+
 Template.mainLayout.onCreated(function () {
   this.autorun(() => {
     if (Meteor.userId()) {
@@ -206,7 +210,6 @@ Template.tickets.onCreated(function () {
   // Restore last active ticket if it is still running
   this.activeTicketId = new ReactiveVar(null);
   this.clockedIn = new ReactiveVar(false);
-  this.timerInterval = null;
   this.autorun(() => {
     this.subscribe('userTeams');
     this.subscribe('clockEventsForUser');
@@ -231,6 +234,10 @@ Template.tickets.onCreated(function () {
   });
 });
 
+Template.tickets.onDestroyed(function() {
+  // No cleanup needed anymore since we're using a global reactive timer
+});
+
 Template.tickets.helpers({
   userTeams() {
     // Return the list of teams the user is in
@@ -250,7 +257,7 @@ Template.tickets.helpers({
     const teamId = Template.instance().selectedTeamId.get();
     if (!teamId) return [];
     const activeTicketId = Template.instance().activeTicketId.get();
-    const now = Date.now();
+    const now = currentTime.get(); // Use reactive time source
     return Tickets.find({ teamId }).fetch().map(ticket => {
       // If this ticket is active and has a startTimestamp, show live time
       if (ticket._id === activeTicketId && ticket.startTimestamp) {
@@ -295,6 +302,18 @@ Template.tickets.helpers({
     const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
     return !!clockEvent;
   },
+  currentClockEventTime() {
+    const teamId = Template.instance().selectedTeamId.get();
+    const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
+    if (!clockEvent) return 0;
+    
+    let total = clockEvent.accumulatedTime || 0;
+    if (clockEvent.startTimestamp) {
+      const now = currentTime.get();  // Use reactive time source
+      total += Math.floor((now - clockEvent.startTimestamp) / 1000);
+    }
+    return total;
+  },
 });
 
 Template.tickets.events({
@@ -334,18 +353,48 @@ Template.tickets.events({
     const isActive = t.activeTicketId.get() === ticketId;
     const ticket = Tickets.findOne(ticketId);
     const teamId = t.selectedTeamId.get();
+    
     // Check if user is clocked in for this team
     const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
+    
     if (!isActive) {
-      // Start the timer: set startTimestamp and activate this ticket
+      // Stop any currently active ticket first
+      const currentActiveTicketId = t.activeTicketId.get();
+      if (currentActiveTicketId) {
+        const currentTicket = Tickets.findOne(currentActiveTicketId);
+        if (currentTicket && currentTicket.startTimestamp) {
+          const now = Date.now();
+          // Stop the current ticket
+          Meteor.call('updateTicketStop', currentActiveTicketId, now, (err) => {
+            if (err) {
+              alert('Failed to stop current timer: ' + err.reason);
+              return;
+            }
+          });
+          
+          // Stop the current ticket in the clock event if needed
+          if (clockEvent) {
+            Meteor.call('clockEventStopTicket', clockEvent._id, currentActiveTicketId, now, (err) => {
+              if (err) {
+                alert('Failed to stop current ticket in clock event: ' + err.reason);
+                return;
+              }
+            });
+          }
+        }
+      }
+      
+      // Start the new timer
       t.activeTicketId.set(ticketId);
       const now = Date.now();
       Meteor.call('updateTicketStart', ticketId, now, (err) => {
         if (err) {
           alert('Failed to start timer: ' + err.reason);
+          return;
         }
       });
-      // If user is clocked in, add a ticket timing entry to the clock event
+      
+      // If user is clocked in, add the new ticket timing entry to the clock event
       if (clockEvent) {
         Meteor.call('clockEventAddTicket', clockEvent._id, ticketId, now, (err) => {
           if (err) {
@@ -353,10 +402,6 @@ Template.tickets.events({
           }
         });
       }
-      if (t.timerInterval) clearInterval(t.timerInterval);
-      t.timerInterval = setInterval(() => {
-        Tracker.flush(); // Force Blaze to re-render for live timer
-      }, 1000);
     } else {
       // Stop the timer: calculate elapsed, add to accumulatedTime, clear startTimestamp
       if (ticket && ticket.startTimestamp) {
@@ -366,6 +411,7 @@ Template.tickets.events({
             alert('Failed to stop timer: ' + err.reason);
           }
         });
+        
         // If user is clocked in, stop the ticket timing in the clock event
         if (clockEvent) {
           Meteor.call('clockEventStopTicket', clockEvent._id, ticketId, now, (err) => {
@@ -376,7 +422,6 @@ Template.tickets.events({
         }
       }
       t.activeTicketId.set(null);
-      if (t.timerInterval) clearInterval(t.timerInterval);
     }
   },
   'click #clockInOut'(e, t) {
@@ -423,6 +468,8 @@ Template.home.onCreated(function () {
     const teamIds = leaderTeams.map(t => t._id);
     if (teamIds.length) {
       this.subscribe('clockEventsForTeams', teamIds);
+      // Also subscribe to all tickets for these teams
+      this.subscribe('teamTickets', teamIds);
     }
     // Subscribe to all users in those teams for username display
     const allMembers = Array.from(new Set(leaderTeams.flatMap(t => t.members)));
@@ -430,10 +477,6 @@ Template.home.onCreated(function () {
       this.subscribe('usersByIds', allMembers);
     }
   });
-  // Live update for timers
-  this.timerInterval = setInterval(() => {
-    Tracker.flush();
-  }, 1000);
 });
 
 Template.home.helpers({
@@ -457,23 +500,29 @@ Template.home.helpers({
     const user = Meteor.users && Meteor.users.findOne(userId);
     return user && user.username ? user.username : userId;
   },
+  formatDate(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+  },
+  ticketTitle(ticketId) {
+    const ticket = Tickets.findOne(ticketId);
+    return ticket ? ticket.title : `Unknown Ticket (${ticketId})`;
+  },
   clockEventTotalTime(clockEvent) {
-    let total = 0;
-    const now = Date.now();
-    (clockEvent.tickets || []).forEach(t => {
-      total += (t.accumulatedTime || 0);
-      if (t.startTimestamp) {
-        total += Math.floor((now - t.startTimestamp) / 1000);
-      }
-    });
+    let total = clockEvent.accumulatedTime || 0;
+    if (!clockEvent.endTime && clockEvent.startTimestamp) {
+      const now = currentTime.get(); // Use reactive time source
+      total += Math.floor((now - clockEvent.startTimestamp) / 1000);
+    }
     return total;
   },
   ticketTotalTime(ticket) {
     let total = ticket.accumulatedTime || 0;
     if (ticket.startTimestamp) {
-      total += Math.floor((Date.now() - ticket.startTimestamp) / 1000);
+      const now = currentTime.get(); // Use reactive time source
+      total += Math.floor((now - ticket.startTimestamp) / 1000);
     }
-    console.log('Ticket total time:', total);
     return total;
   },
   formatTime(time) {
