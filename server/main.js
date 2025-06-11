@@ -42,16 +42,16 @@ Meteor.publish('teamDetails', function (teamId) {
   return Teams.find({ _id: teamId, members: this.userId });
 });
 
-Meteor.publish('teamMembers', function (teamIds) {
+Meteor.publish('teamMembers', async function (teamIds) {
   check(teamIds, [String]);
   // Only allow if user is a member of all requested teams
-  const teams = Teams.find({ _id: { $in: teamIds }, members: this.userId }).fetch();
+  const teams = await Teams.find({ _id: { $in: teamIds }, members: this.userId }).fetchAsync();
   const userIds = Array.from(new Set(teams.flatMap(team => team.members)));
   return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
 });
 
 Meteor.publish('teamTickets', function (teamId) {
-  check(teamId, String);
+  check(teamId, [String]);
   // Only publish tickets for this team that were created by the current user
   return Tickets.find({ teamId, createdBy: this.userId });
 });
@@ -62,18 +62,18 @@ Meteor.publish('clockEventsForUser', function () {
   return ClockEvents.find({ userId: this.userId });
 });
 
-Meteor.publish('clockEventsForTeams', function (teamIds) {
+Meteor.publish('clockEventsForTeams', async function (teamIds) {
   check(teamIds, [String]);
   // Only publish clock events for teams the user leads
-  const leaderTeams = Teams.find({ leader: this.userId, _id: { $in: teamIds } }).fetch();
+  const leaderTeams = await Teams.find({ leader: this.userId, _id: { $in: teamIds } }).fetchAsync();
   const allowedTeamIds = leaderTeams.map(t => t._id);
   return ClockEvents.find({ teamId: { $in: allowedTeamIds } });
 });
 
-Meteor.publish('usersByIds', function (userIds) {
+Meteor.publish('usersByIds', async function (userIds) {
   check(userIds, [String]);
   // Only publish users that are in teams the current user is a member or leader of
-  const userTeams = Teams.find({ $or: [{ members: this.userId }, { leader: this.userId }] }).fetch();
+  const userTeams = await Teams.find({ $or: [{ members: this.userId }, { leader: this.userId }] }).fetchAsync();
   const allowedUserIds = Array.from(new Set(userTeams.flatMap(team => team.members.concat([team.leader]))));
   const filteredUserIds = userIds.filter(id => allowedUserIds.includes(id));
   return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { username: 1 } });
@@ -204,7 +204,7 @@ Meteor.methods({
     const clockEvent = await ClockEvents.findOneAsync({ userId: this.userId, teamId, endTime: null });
     if (clockEvent) {
       const now = Date.now();
-      
+
       // Calculate and update accumulated time for the clock event
       if (clockEvent.startTimestamp) {
         const elapsed = Math.floor((now - clockEvent.startTimestamp) / 1000);
