@@ -50,10 +50,10 @@ Meteor.publish('teamMembers', async function (teamIds) {
   return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
 });
 
-Meteor.publish('teamTickets', function (teamId) {
-  check(teamId, [String]);
+Meteor.publish('teamTickets', function (teamIds) {
+  check(teamIds, [String]);
   // Only publish tickets for this team that were created by the current user
-  return Tickets.find({ teamId, createdBy: this.userId });
+  return Tickets.find({ teamId: { $in: teamIds }, createdBy: this.userId });
 });
 
 Meteor.publish('clockEventsForUser', function () {

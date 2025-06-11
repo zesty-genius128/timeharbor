@@ -214,15 +214,18 @@ Template.tickets.onCreated(function () {
     this.subscribe('userTeams');
     this.subscribe('clockEventsForUser');
     // If no team is selected, default to the first team
-    if (!this.selectedTeamId.get()) {
-      const firstTeam = Teams.findOne({ members: Meteor.userId() });
-      if (firstTeam) {
-        this.selectedTeamId.set(firstTeam._id);
-      }
+    const teamIds = Teams.find({}).map(t => t._id);
+
+
+    let teamId = this.selectedTeamId.get();
+    if (!teamId) {
+      this.selectedTeamId.set(teamIds[0]);
+      teamId = this.selectedTeamId.get();
     }
-    const teamId = this.selectedTeamId.get();
+
+    this.subscribe('teamTickets', teamIds);
+
     if (teamId) {
-      this.subscribe('teamTickets', teamId);
       // Restore active ticket if any ticket for this team has a startTimestamp
       const runningTicket = Tickets.findOne({ teamId, startTimestamp: { $exists: true } });
       if (runningTicket) {
@@ -339,7 +342,6 @@ Template.tickets.events({
       alert('Ticket title is required.');
       return;
     }
-    debugger;
     Meteor.call('createTicket', { teamId, title, github, accumulatedTime }, (err) => {
       if (!err) {
         t.showCreateTicketForm.set(false);
