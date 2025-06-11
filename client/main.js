@@ -202,6 +202,26 @@ Template.teams.events({
     t.selectedTeamId.set(null);
     t.selectedTeamUsers.set([]); // Clear users when going back
   },
+  'click #copyTeamCode'(e, t) {
+    const teamId = Template.instance().selectedTeamId.get();
+    const joinCode = Teams.findOne(teamId)?.code;
+    if (joinCode) {
+      navigator.clipboard.writeText(joinCode)
+        .then(() => {
+          // Optional: Add some visual feedback
+          const btn = e.currentTarget;
+          const originalText = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => {
+            btn.textContent = originalText;
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy text: ', err);
+          alert('Failed to copy code to clipboard');
+        });
+    }
+  },
 });
 
 Template.tickets.onCreated(function () {
