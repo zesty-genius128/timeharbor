@@ -306,7 +306,7 @@ Template.tickets.helpers({
     const teamId = Template.instance().selectedTeamId.get();
     const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
     if (!clockEvent) return 0;
-    
+
     let total = clockEvent.accumulatedTime || 0;
     if (clockEvent.startTimestamp) {
       const now = currentTime.get();  // Use reactive time source
@@ -353,10 +353,10 @@ Template.tickets.events({
     const isActive = t.activeTicketId.get() === ticketId;
     const ticket = Tickets.findOne(ticketId);
     const teamId = t.selectedTeamId.get();
-    
+
     // Check if user is clocked in for this team
     const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
-    
+
     if (!isActive) {
       // Stop any currently active ticket first
       const currentActiveTicketId = t.activeTicketId.get();
@@ -371,7 +371,7 @@ Template.tickets.events({
               return;
             }
           });
-          
+
           // Stop the current ticket in the clock event if needed
           if (clockEvent) {
             Meteor.call('clockEventStopTicket', clockEvent._id, currentActiveTicketId, now, (err) => {
@@ -383,7 +383,7 @@ Template.tickets.events({
           }
         }
       }
-      
+
       // Start the new timer
       t.activeTicketId.set(ticketId);
       const now = Date.now();
@@ -393,7 +393,7 @@ Template.tickets.events({
           return;
         }
       });
-      
+
       // If user is clocked in, add the new ticket timing entry to the clock event
       if (clockEvent) {
         Meteor.call('clockEventAddTicket', clockEvent._id, ticketId, now, (err) => {
@@ -411,7 +411,7 @@ Template.tickets.events({
             alert('Failed to stop timer: ' + err.reason);
           }
         });
-        
+
         // If user is clocked in, stop the ticket timing in the clock event
         if (clockEvent) {
           Meteor.call('clockEventStopTicket', clockEvent._id, ticketId, now, (err) => {
