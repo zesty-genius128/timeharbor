@@ -235,7 +235,6 @@ Meteor.methods({
       // Mark clock event as ended
       await ClockEvents.updateAsync(clockEvent._id, {
         $set: { endTime: new Date() },
-        $unset: { startTimestamp: '' }
       });
     }
   },
