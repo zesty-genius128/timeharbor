@@ -367,7 +367,25 @@ Template.tickets.events({
         t.showCreateTicketForm.set(false);
         // Auto-start the ticket if there's time specified
         if (accumulatedTime > 0) {
+          const now = Date.now();
+          // Start the new timer
           t.activeTicketId.set(ticketId);
+          debugger;
+          Meteor.call('updateTicketStart', ticketId, now, (err) => {
+            if (err) {
+              alert('Failed to start timer: ' + err.reason);
+              return;
+            }
+            // If user is clocked in, add the ticket timing entry to the clock event
+            const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
+            if (clockEvent) {
+              Meteor.call('clockEventAddTicket', clockEvent._id, ticketId, now, (err) => {
+                if (err) {
+                  alert('Failed to add ticket to clock event: ' + err.reason);
+                }
+              });
+            }
+          });
         }
       } else {
         alert('Error creating ticket: ' + err.reason);
@@ -413,6 +431,7 @@ Template.tickets.events({
       // Start the new timer
       t.activeTicketId.set(ticketId);
       const now = Date.now();
+      debugger;
       Meteor.call('updateTicketStart', ticketId, now, (err) => {
         if (err) {
           alert('Failed to start timer: ' + err.reason);
