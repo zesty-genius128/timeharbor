@@ -362,9 +362,13 @@ Template.tickets.events({
       alert('Ticket title is required.');
       return;
     }
-    Meteor.call('createTicket', { teamId, title, github, accumulatedTime }, (err) => {
+    Meteor.call('createTicket', { teamId, title, github, accumulatedTime }, (err, ticketId) => {
       if (!err) {
         t.showCreateTicketForm.set(false);
+        // Auto-start the ticket if there's time specified
+        if (accumulatedTime > 0) {
+          t.activeTicketId.set(ticketId);
+        }
       } else {
         alert('Error creating ticket: ' + err.reason);
       }
@@ -417,6 +421,7 @@ Template.tickets.events({
       });
 
       // If user is clocked in, add the new ticket timing entry to the clock event
+      // Note: Initial accumulated time is now handled server-side in clockEventAddTicket
       if (clockEvent) {
         Meteor.call('clockEventAddTicket', clockEvent._id, ticketId, now, (err) => {
           if (err) {

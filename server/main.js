@@ -145,7 +145,9 @@ Meteor.methods({
     // Only allow creating a ticket if the user is a member of the team
     const team = await Teams.findOneAsync({ _id: teamId, members: this.userId });
     if (!team) throw new Meteor.Error('not-authorized', 'You are not a member of this team');
-    return await Tickets.insertAsync({
+    
+    // Create the ticket
+    const ticketId = await Tickets.insertAsync({
       teamId,
       title,
       github,
@@ -153,6 +155,31 @@ Meteor.methods({
       createdBy: this.userId,
       createdAt: new Date(),
     });
+
+    // If there's an active clock event for this team, add the ticket to it
+    const activeClockEvent = await ClockEvents.findOneAsync({ 
+      userId: this.userId, 
+      teamId, 
+      endTime: null 
+    });
+    
+    if (activeClockEvent) {
+      const currentAccumulatedTime = activeClockEvent.accumulatedTime || 0;
+      await ClockEvents.updateAsync(activeClockEvent._id, {
+        $push: {
+          tickets: {
+            ticketId,
+            startTimestamp: Date.now(),
+            accumulatedTime // Include initial time in clock event
+          }
+        },
+        $set: {
+          accumulatedTime: currentAccumulatedTime + accumulatedTime // Add initial time to clock event total
+        }
+      });
+    }
+
+    return ticketId;
   },
   incrementTicketTime(ticketId, seconds) {
     check(ticketId, String);
@@ -252,14 +279,24 @@ Meteor.methods({
         { $set: { 'tickets.$.startTimestamp': now } }
       );
     } else {
-      // Otherwise, add a new ticket entry
+      // Get the ticket's initial accumulated time
+      const ticket = await Tickets.findOneAsync(ticketId);
+      const initialTime = ticket ? (ticket.accumulatedTime || 0) : 0;
+      
+      // Add new ticket entry with initial accumulated time
+      const clockEventData = await ClockEvents.findOneAsync(clockEventId);
+      const currentAccumulatedTime = clockEventData.accumulatedTime || 0;
+      
       await ClockEvents.updateAsync(clockEventId, {
         $push: {
           tickets: {
             ticketId,
             startTimestamp: now,
-            accumulatedTime: 0
+            accumulatedTime: initialTime // Include initial time from ticket
           }
+        },
+        $set: {
+          accumulatedTime: currentAccumulatedTime + initialTime // Add initial time to clock event total
         }
       });
     }
