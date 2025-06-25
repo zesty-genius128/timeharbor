@@ -2,6 +2,8 @@
 
 A privacy-first time tracking and reflection tool that empowers individuals to track, reflect on, and selectively share how they spend their time. Designed as your personal assistant and coach, not a surveillance tool.
 
+Quick start: [click here](./HOW_TO_USE.md)
+
 ---
 
 ## Table of Contents
@@ -51,7 +53,7 @@ A privacy-first time tracking and reflection tool that empowers individuals to t
 ## Design Principles
 
 - **Privacy First:** No data is visible to others without user consent
-- **Empowerment:** Helps users advocate for themselves, communicate their value, and reflect on their work  
+- **Empowerment:** Helps users advocate for themselves, communicate their value, and reflect on their work
 - **Non-Intrusive:** Avoids any "big brother" feel; the assistant is a buddy, not a monitor
 - **Broad Applicability:** Useful for nonprofits, educational settings, and traditional workplaces
 
