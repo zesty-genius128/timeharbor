@@ -284,7 +284,7 @@ Template.tickets.helpers({
     return Tickets.find({ teamId }).fetch().map(ticket => {
       // If this ticket is active and has a startTimestamp, show live time
       if (ticket._id === activeTicketId && ticket.startTimestamp) {
-        const elapsed = Math.floor((now - ticket.startTimestamp) / 1000);
+        const elapsed = Math.max(0, Math.floor((now - ticket.startTimestamp) / 1000));
         return {
           ...ticket,
           displayTime: (ticket.accumulatedTime || 0) + elapsed
@@ -333,7 +333,7 @@ Template.tickets.helpers({
     let total = clockEvent.accumulatedTime || 0;
     if (clockEvent.startTimestamp) {
       const now = currentTime.get();  // Use reactive time source
-      total += Math.floor((now - clockEvent.startTimestamp) / 1000);
+      total += Math.max(0, Math.floor((now - clockEvent.startTimestamp) / 1000));
     }
     return total;
   },
@@ -559,7 +559,7 @@ Template.home.helpers({
     let total = clockEvent.accumulatedTime || 0;
     if (!clockEvent.endTime && clockEvent.startTimestamp) {
       const now = currentTime.get(); // Use reactive time source
-      total += Math.floor((now - clockEvent.startTimestamp) / 1000);
+      total += Math.max(0, Math.floor((now - clockEvent.startTimestamp) / 1000));
     }
     return total;
   },
@@ -567,7 +567,7 @@ Template.home.helpers({
     let total = ticket.accumulatedTime || 0;
     if (ticket.startTimestamp) {
       const now = currentTime.get(); // Use reactive time source
-      total += Math.floor((now - ticket.startTimestamp) / 1000);
+      total += Math.max(0, Math.floor((now - ticket.startTimestamp) / 1000));
     }
     return total;
   },
