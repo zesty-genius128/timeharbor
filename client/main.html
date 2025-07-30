@@ -2,18 +2,9 @@
   <title>TimeHarbor - Your Personal Time Tracking Assistant</title>
   <link rel="stylesheet" href="/client/tailwind.generated.css">
 </head>
-
 <body class="bg-base-100 min-h-screen">
-  {{#if logoutMessage}}
-    <div class="toast toast-top toast-center z-50">
-      <div class="alert alert-success shadow-lg">
-        <span>{{logoutMessage}}</span>
-      </div>
-    </div>
-  {{/if}}
   {{> Template.dynamic template=currentScreen}}
 </body>
-
 <template name="mainLayout">
   <header class="navbar bg-primary text-primary-content shadow mb-6">
     <div class="flex-1">
@@ -23,15 +14,6 @@
       <a href="/" class="btn btn-ghost hover:bg-primary-focus">Home</a>
       <a href="/teams" class="btn btn-ghost hover:bg-primary-focus">Teams</a>
       <a href="/tickets" class="btn btn-ghost hover:bg-primary-focus">Projects</a>
-      {{#if currentUser}}
-        <button id="logoutBtn" class="btn btn-outline btn-error ml-4" {{logoutBtnAttrs}}>
-          {{#if isLogoutLoading}}
-            <span class="loading loading-spinner loading-xs"></span> Logging out...
-          {{else}}
-            Logout
-          {{/if}}
-        </button>
-      {{/if}}
     </nav>
   </header>
   <main class="container mx-auto px-4">
@@ -41,7 +23,6 @@
     <p>&copy; 2025 TimeHarbor - Your Personal Time Tracking Assistant</p>
   </footer>
 </template>
-
 <template name="home">
   <h3 class="text-xl font-semibold mb-4">Your Time Overview</h3>
   <ul class="space-y-4">
@@ -84,7 +65,6 @@
     {{/each}}
   </ul>
 </template>
-
 <template name="teams">
   <h3 class="text-xl font-semibold mb-4">Projects & Teams</h3>
   {{#if selectedTeam}}
@@ -109,20 +89,9 @@
     </div>
     {{#if showCreateTeam}}
       <form id="createTeamForm" class="card bg-base-100 shadow p-4 mb-4 flex flex-col gap-2">
-        <div class="flex items-center gap-2">
-          <input type="text" name="teamName" placeholder="Project Name" class="input input-bordered flex-1" required />
-          {{#if teamNameValidation.message}}
-            <div class="flex items-center gap-1">
-              {{#if teamNameValidation.available}}
-                <span class="text-green-600 text-sm">{{teamNameValidation.message}} ✓</span>
-              {{else}}
-                <span class="text-red-600 text-sm">{{teamNameValidation.message}} ✗</span>
-              {{/if}}
-            </div>
-          {{/if}}
-        </div>
+        <input type="text" name="teamName" placeholder="Project Name" class="input input-bordered" required />
         <div class="flex gap-2">
-          <button type="submit" class="btn btn-primary" {{disabledIfTeamNameUnavailable}}>Create Project</button>
+          <button type="submit" class="btn btn-primary">Create Project</button>
           <button type="button" id="cancelCreateTeam" class="btn btn-outline">Cancel</button>
         </div>
       </form>
@@ -145,7 +114,6 @@
     </div>
   {{/if}}
 </template>
-
 <template name="tickets">
   <h3 class="text-xl font-semibold mb-4">My Activities & Tasks</h3>
   {{#if userTeams.length}}
@@ -204,7 +172,6 @@
     </div>
   {{/if}}
 </template>
-
 <template name="joinTeam">
   <h3 class="text-xl font-semibold mb-4">Join a Project</h3>
   <form id="joinTeamForm" class="card bg-base-100 shadow p-4 flex flex-col gap-2">
@@ -212,7 +179,6 @@
     <button type="submit" class="btn" style="background-color: #4A5568; color: white; hover:bg-opacity-90">Join</button>
   </form>
 </template>
-
 <template name="createParticipant">
   <h3 class="text-xl font-semibold mb-4">Create Participant</h3>
   <form id="createParticipantForm" class="card bg-base-100 shadow p-4 flex flex-col gap-2">
@@ -220,7 +186,6 @@
     <button type="submit" class="btn btn-primary">Create</button>
   </form>
 </template>
-
 <template name="createTeam">
   <h3 class="text-xl font-semibold mb-4">Create a Project</h3>
   <form id="createTeamForm" class="card bg-base-100 shadow p-4 flex flex-col gap-2">
@@ -229,7 +194,6 @@
     <button type="submit" class="btn btn-primary">Create</button>
   </form>
 </template>
-
 <template name="authPage">
   <h3 class="text-2xl font-bold mb-2">Welcome to TimeHarbor</h3>
   <p class="mb-4">Your personal time tracking assistant. Please log in or create an account to get started.</p>
