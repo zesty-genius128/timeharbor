@@ -1,7 +1,9 @@
 import { Meteor } from 'meteor/meteor';
-import { Accounts } from 'meteor/accounts-base';
 import { check } from 'meteor/check';
 import { Tickets, Teams, Sessions, ClockEvents } from '../collections.js';
+
+// Import authentication methods
+import { authMethods } from './methods/auth.js';
 
 function generateTeamCode() {
   // Simple random code, can be improved for production
@@ -77,6 +79,9 @@ Meteor.publish('usersByIds', async function (userIds) {
   return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { username: 1 } });
 });
 
+// Register authentication methods
+Object.assign(Meteor.methods, authMethods);
+
 Meteor.methods({
   async joinTeamWithCode(teamCode) {
     check(teamCode, String);
@@ -115,21 +120,7 @@ Meteor.methods({
       createdAt: new Date(),
     });
     return teamId;
-  },
- createUserAccount({ username, password }) {
-    if (!username || !password) {
-      throw new Meteor.Error('invalid-data', 'Username and password are required');
-    }
-
-    try {
-      const userId = Accounts.createUser({ username, password });
-      console.log('User created:', { userId, username }); // Log user creation details
-      return userId;
-    } catch (error) {
-      console.error('Error in createUserAccount method:', error);
-      throw new Meteor.Error('server-error', 'Failed to create user');
-    }
-  },
+    },
   async getUsers(userIds) {
     check(userIds, [String]);
     const users = await Meteor.users.find({ _id: { $in: userIds } }).fetchAsync();
