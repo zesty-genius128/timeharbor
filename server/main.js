@@ -5,10 +5,10 @@ import { Tickets, Teams, Sessions, ClockEvents } from '../collections.js';
 // Import authentication methods
 import { authMethods } from './methods/auth.js';
 
-function generateTeamCode() {
-  // Simple random code, can be improved for production
-  return Math.random().toString(36).substr(2, 8).toUpperCase();
-}
+// Import team methods
+import { teamMethods } from './methods/teams.js';
+
+
 
 Meteor.startup(async () => {
   // Code to run on server startup
@@ -27,7 +27,7 @@ Meteor.startup(async () => {
   // Add a code to any existing teams that do not have one
   const teamsWithoutCode = await Teams.find({ code: { $exists: false } }).fetchAsync();
   for (const team of teamsWithoutCode) {
-    const code = generateTeamCode();
+    const code = Math.random().toString(36).substr(2, 8).toUpperCase();
     await Teams.updateAsync(team._id, { $set: { code } });
   }
 });
@@ -79,53 +79,21 @@ Meteor.publish('usersByIds', async function (userIds) {
   return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { username: 1 } });
 });
 
-// Register authentication methods
-Object.assign(Meteor.methods, authMethods);
+// Register all methods
+
 
 Meteor.methods({
-  async joinTeamWithCode(teamCode) {
-    check(teamCode, String);
-    if (!this.userId) {
-      throw new Meteor.Error('not-authorized');
-    }
-    const team = await Teams.findOneAsync({ code: teamCode });
-    if (!team) {
-      throw new Meteor.Error('not-found', 'Team not found');
-    }
-    if (team.members.includes(this.userId)) {
-      throw new Meteor.Error('already-member', 'You are already a member of this team');
-    }
-    // Prevent joining if the team is private or has restrictions (future-proofing)
-    // if (team.isPrivate) throw new Meteor.Error('not-authorized', 'This team is private');
-    await Teams.updateAsync(team._id, { $push: { members: this.userId } });
-    return team._id;
-  },
+  ...authMethods,
+  ...teamMethods,
+
   'participants.create'(name) {
     check(name, String);
     // Logic to create a participant account
     console.log(`Creating participant with name: ${name}`);
     Accounts.createUser({ username: name });
   },
-  async createTeam(teamName) {
-    check(teamName, String);
-    if (!this.userId) {
-      throw new Meteor.Error('not-authorized');
-    }
-    const code = generateTeamCode();
-    const teamId = await Teams.insertAsync({
-      members: [this.userId],
-      admins: [this.userId],
-      leader: this.userId,
-      code,
-      createdAt: new Date(),
-    });
-    return teamId;
-    },
-  async getUsers(userIds) {
-    check(userIds, [String]);
-    const users = await Meteor.users.find({ _id: { $in: userIds } }).fetchAsync();
-    return users.map(user => ({ id: user._id, username: user.username }));
-  },
+
+
   async createTicket({ teamId, title, github, accumulatedTime }) {
     check(teamId, String);
     check(title, String);
@@ -315,5 +283,5 @@ Meteor.methods({
         }
       );
     }
-  },
+  }
 });
