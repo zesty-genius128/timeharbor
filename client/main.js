@@ -12,6 +12,9 @@ import './components/layout/MainLayout.js';
 // Import team components
 import './components/teams/TeamsPage.js';
 
+// Import ticket components
+import './components/tickets/TicketsPage.js';
+
 
 
 Template.tickets.onCreated(function () {
