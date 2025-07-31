@@ -6,7 +6,7 @@ import { currentScreen, isLogoutLoading, logoutMessage } from '../auth/AuthPage.
 const currentTemplate = new ReactiveVar('home');
 
 // Reactive variable to track current time for timers
-const currentTime = new ReactiveVar(Date.now());
+export const currentTime = new ReactiveVar(Date.now());
 setInterval(() => currentTime.set(Date.now()), 1000);
 
 // Safety check for template

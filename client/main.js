@@ -15,8 +15,8 @@ import './components/teams/TeamsPage.js';
 // Import ticket components
 import './components/tickets/TicketsPage.js';
 
-
-
+// Import currentTime from MainLayout
+import { currentTime } from './components/layout/MainLayout.js';
 
 
 Template.home.onCreated(function () {
