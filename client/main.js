@@ -5,17 +5,18 @@ import { Teams, Tickets, ClockEvents } from '../collections.js';
 // Import HTML template first
 import './main.html';
 
-// Import authentication components after HTML is loaded
+// Import component HTML files
+import './components/auth/AuthPage.html';
+import './components/layout/MainLayout.html';
+import './components/teams/TeamsPage.html';
+import './components/tickets/TicketsPage.html';
+import './components/home/HomePage.html';
+
+// Import component JS files
 import './components/auth/AuthPage.js';
 import './components/layout/MainLayout.js';
-
-// Import team components
 import './components/teams/TeamsPage.js';
-
-// Import ticket components
 import './components/tickets/TicketsPage.js';
-
-// Import home components
 import './components/home/HomePage.js';
 
 // Import currentTime from MainLayout
