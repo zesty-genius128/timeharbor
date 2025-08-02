@@ -1,6 +1,7 @@
 import { Template } from 'meteor/templating';
 import { Teams, Tickets, ClockEvents } from '../../../collections.js';
 import { currentTime } from '../layout/MainLayout.js';
+import { formatTime, formatDate, calculateTotalTime } from '../../utils/TimeUtils.js';
 
 Template.home.onCreated(function () {
   this.autorun(() => {
@@ -43,36 +44,16 @@ Template.home.helpers({
     const user = Meteor.users && Meteor.users.findOne(userId);
     return user && user.username ? user.username : userId;
   },
-  formatDate(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  },
+  formatDate,  // Using imported utility
   ticketTitle(ticketId) {
     const ticket = Tickets.findOne(ticketId);
     return ticket ? ticket.title : `Unknown Ticket (${ticketId})`;
   },
   clockEventTotalTime(clockEvent) {
-    let total = clockEvent.accumulatedTime || 0;
-    if (!clockEvent.endTime && clockEvent.startTimestamp) {
-      const now = currentTime.get(); // Use reactive time source
-      total += Math.max(0, Math.floor((now - clockEvent.startTimestamp) / 1000));
-    }
-    return total;
+    return calculateTotalTime(clockEvent);  // Using imported utility
   },
   ticketTotalTime(ticket) {
-    let total = ticket.accumulatedTime || 0;
-    if (ticket.startTimestamp) {
-      const now = currentTime.get(); // Use reactive time source
-      total += Math.max(0, Math.floor((now - ticket.startTimestamp) / 1000));
-    }
-    return total;
+    return calculateTotalTime(ticket);  // Using imported utility
   },
-  formatTime(time) {
-    const t = Number(time) || 0;
-    const h = Math.floor(t / 3600);
-    const m = Math.floor((t % 3600) / 60);
-    const s = t % 60;
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  },
-}); 
+  formatTime,  // Using imported utility
+});

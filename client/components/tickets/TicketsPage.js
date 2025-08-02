@@ -2,6 +2,7 @@ import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
 import { Teams, Tickets, ClockEvents } from '../../../collections.js';
 import { currentTime } from '../layout/MainLayout.js';
+import { formatTime, calculateTotalTime } from '../../utils/TimeUtils.js';
 
 Template.tickets.onCreated(function () {
   this.showCreateTicketForm = new ReactiveVar(false);
@@ -79,13 +80,7 @@ Template.tickets.helpers({
   isActive(ticketId) {
     return Template.instance().activeTicketId.get() === ticketId;
   },
-  formatTime(time) {
-    if (typeof time !== 'number' || isNaN(time)) return '0:00:00';
-    const h = Math.floor(time / 3600);
-    const m = Math.floor((time % 3600) / 60);
-    const s = time % 60;
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  },
+  formatTime,  // Using imported utility
   githubLink(github) {
     if (!github) return '';
     if (github.startsWith('http')) return github;
@@ -108,16 +103,11 @@ Template.tickets.helpers({
     const teamId = Template.instance().selectedTeamId.get();
     const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
     if (!clockEvent) return 0;
-
-    let total = clockEvent.accumulatedTime || 0;
-    if (clockEvent.startTimestamp) {
-      const now = currentTime.get();  // Use reactive time source
-      total += Math.max(0, Math.floor((now - clockEvent.startTimestamp) / 1000));
-    }
-    return total;
+    return calculateTotalTime(clockEvent);  // Using imported utility
   },
 });
 
+// Rest of the events code remains unchanged
 Template.tickets.events({
   'change #teamSelect'(e, t) {
     t.selectedTeamId.set(e.target.value);
@@ -282,4 +272,4 @@ Template.tickets.events({
       }
     });
   },
-}); 
+});
