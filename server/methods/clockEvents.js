@@ -1,6 +1,7 @@
 import { Meteor } from 'meteor/meteor';
 import { check } from 'meteor/check';
 import { ClockEvents, Tickets } from '../../collections.js';
+import { stopTicketInClockEvent } from '../utils/ClockEventHelpers.js';
 
 export const clockEventMethods = {
   async clockEventStart(teamId) {
@@ -40,17 +41,9 @@ export const clockEventMethods = {
       if (clockEvent.tickets) {
         const updates = clockEvent.tickets
           .filter(t => t.startTimestamp)
-          .map(async (ticket) => {
-            const elapsed = Math.floor((now - ticket.startTimestamp) / 1000);
-            const prev = ticket.accumulatedTime || 0;
-            return ClockEvents.updateAsync(
-              { _id: clockEvent._id, 'tickets.ticketId': ticket.ticketId },
-              {
-                $set: { 'tickets.$.accumulatedTime': prev + elapsed },
-                $unset: { 'tickets.$.startTimestamp': '' }
-              }
-            );
-          });
+          .map(ticket =>
+            stopTicketInClockEvent(clockEvent._id, ticket.ticketId, now, ClockEvents)
+          );
         await Promise.all(updates);
       }
 
@@ -105,24 +98,6 @@ export const clockEventMethods = {
     check(ticketId, String);
     check(now, Number);
     if (!this.userId) throw new Meteor.Error('not-authorized');
-    const clockEvent = await ClockEvents.findOneAsync(clockEventId);
-    if (!clockEvent || !clockEvent.tickets) return;
-    const ticketEntry = clockEvent.tickets.find(t => t.ticketId === ticketId && t.startTimestamp);
-    if (ticketEntry) {
-      const elapsed = Math.floor((now - ticketEntry.startTimestamp) / 1000);
-      const prev = ticketEntry.accumulatedTime || 0;
-      // Update the ticket entry in the tickets array
-      await ClockEvents.updateAsync(
-        { _id: clockEventId, 'tickets.ticketId': ticketId },
-        {
-          $set: {
-            'tickets.$.accumulatedTime': prev + elapsed
-          },
-          $unset: {
-            'tickets.$.startTimestamp': ''
-          }
-        }
-      );
-    }
+    await stopTicketInClockEvent(clockEventId, ticketId, now, ClockEvents);
   },
 }; 
