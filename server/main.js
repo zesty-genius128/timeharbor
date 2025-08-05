@@ -1,19 +1,13 @@
 import { Meteor } from 'meteor/meteor';
 import { check } from 'meteor/check';
 import { Tickets, Teams, Sessions, ClockEvents } from '../collections.js';
-
 // Import authentication methods
 import { authMethods } from './methods/auth.js';
-
 // Import team methods
 import { teamMethods } from './methods/teams.js';
-
 // Import ticket and clock event methods
 import { ticketMethods } from './methods/tickets.js';
 import { clockEventMethods } from './methods/clockEvents.js';
-
-
-
 Meteor.startup(async () => {
   // Code to run on server startup
   if (await Tickets.find().countAsync() === 0) {
@@ -27,7 +21,6 @@ Meteor.startup(async () => {
   if (await Sessions.find().countAsync() === 0) {
     await Sessions.insertAsync({ userId: 'sampleUser', startTime: new Date(), endTime: null });
   }
-
   // Add a code to any existing teams that do not have one
   const teamsWithoutCode = await Teams.find({ code: { $exists: false } }).fetchAsync();
   for (const team of teamsWithoutCode) {
@@ -95,11 +88,4 @@ Meteor.methods({
     console.log(`Creating participant with name: ${name}`);
     Accounts.createUser({ username: name });
   },
-
-
-
-
-
-
-
 });

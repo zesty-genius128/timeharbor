@@ -10,9 +10,7 @@ const logoutMessage = new ReactiveVar('');
 export { currentScreen, isLogoutLoading, logoutMessage };
 
 // Wait for template to be ready before attaching events
-Template.authPage.onCreated(function() {
-  // Template is now created and ready
-});
+// Removed empty onCreated block
 
 // Auth page template events - with safety check
 if (Template.authPage) {
