@@ -1,15 +1,15 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
 import { Teams } from '../../../collections.js';
+import { getUserTeams } from '../../utils/UserTeamUtils.js';
 
 Template.teams.onCreated(function () {
   this.showCreateTeam = new ReactiveVar(false);
   this.showJoinTeam = new ReactiveVar(false);
   this.selectedTeamId = new ReactiveVar(null);
   this.selectedTeamUsers = new ReactiveVar([]);
-  
+
   this.autorun(() => {
-    this.subscribe('userTeams');
     const selectedId = this.selectedTeamId.get();
     if (selectedId) {
       this.subscribe('teamDetails', selectedId);
@@ -38,12 +38,7 @@ Template.teams.helpers({
   showJoinTeam() {
     return Template.instance().showJoinTeam.get();
   },
-  userTeams() {
-    console.log('My id:', Meteor.userId());
-    const teams = Teams.find({ members: Meteor.userId() }).fetch();
-    console.log('My teams:', teams);
-    return teams;
-  },
+  userTeams: getUserTeams,
   selectedTeam() {
     const id = Template.instance().selectedTeamId.get();
     const queriedTeam = id ? Teams.findOne(id) : null;
@@ -61,12 +56,10 @@ Template.teams.helpers({
 
 Template.teams.events({
   'click #showCreateTeamForm'(e, t) {
-    console.log('Create team clicked');
     t.showCreateTeam.set(true);
     t.showJoinTeam && t.showJoinTeam.set(false);
   },
   'click #showJoinTeamForm'(e, t) {
-    console.log('Join team clicked');
     t.showJoinTeam.set(true);
     t.showCreateTeam && t.showCreateTeam.set(false);
   },
@@ -74,7 +67,7 @@ Template.teams.events({
     t.showCreateTeam.set(false);
   },
   'submit #createTeamForm'(e, t) {
-    e.preventDefault(); 
+    e.preventDefault();
     const teamName = e.target.teamName.value;
     Meteor.call('createTeam', teamName, (err) => {
       if (!err) {
@@ -123,4 +116,4 @@ Template.teams.events({
         });
     }
   },
-}); 
+});

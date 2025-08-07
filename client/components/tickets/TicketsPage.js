@@ -3,6 +3,7 @@ import { ReactiveVar } from 'meteor/reactive-var';
 import { Teams, Tickets, ClockEvents } from '../../../collections.js';
 import { currentTime } from '../layout/MainLayout.js';
 import { formatTime, calculateTotalTime } from '../../utils/TimeUtils.js';
+import { getUserTeams } from '../../utils/UserTeamUtils.js';
 
 Template.tickets.onCreated(function () {
   this.showCreateTicketForm = new ReactiveVar(false);
@@ -10,10 +11,8 @@ Template.tickets.onCreated(function () {
   // Restore last active ticket if it is still running
   this.activeTicketId = new ReactiveVar(null);
   this.clockedIn = new ReactiveVar(false);
-  
+
   this.autorun(() => {
-    this.subscribe('userTeams');
-    this.subscribe('clockEventsForUser');
     // If no team is selected, default to the first team
     const teamIds = Teams.find({}).map(t => t._id);
 
@@ -42,13 +41,7 @@ Template.tickets.onDestroyed(function() {
 });
 
 Template.tickets.helpers({
-  userTeams() {
-    // Return the list of teams the user is in
-    console.log('My id:', Meteor.userId());
-    const teams = Teams.find({members: Meteor.userId()}).fetch();
-    console.log('My teams:', teams);
-    return teams;
-  },
+  userTeams: getUserTeams,
   isSelectedTeam(teamId) {
     // Return 'selected' if this team is the selected one
     return Template.instance().selectedTeamId && Template.instance().selectedTeamId.get() === teamId ? 'selected' : '';
@@ -139,7 +132,6 @@ Template.tickets.events({
           const now = Date.now();
           // Start the new timer
           t.activeTicketId.set(ticketId);
-          debugger;
           Meteor.call('updateTicketStart', ticketId, now, (err) => {
             if (err) {
               alert('Failed to start timer: ' + err.reason);
@@ -200,7 +192,6 @@ Template.tickets.events({
       // Start the new timer
       t.activeTicketId.set(ticketId);
       const now = Date.now();
-      debugger;
       Meteor.call('updateTicketStart', ticketId, now, (err) => {
         if (err) {
           alert('Failed to start timer: ' + err.reason);
