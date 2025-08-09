@@ -139,6 +139,35 @@ Template.tickets.events({
   'click #cancelCreateTicket'(e, t) {
     t.showCreateTicketForm.set(false);
   },
+  'blur [name="title"]'(e) {
+    const input = e.target.value.trim();
+    if (input.startsWith('http://') || input.startsWith('https://')) {
+      Meteor.call('extractUrlTitle', input, (err, result) => {
+        if (!err && result.title) {
+          // Move URL to reference field and set title
+          document.querySelector('[name="github"]').value = input;
+          e.target.value = result.title;
+        }
+      });
+    }
+  },
+
+  'paste [name="title"]'(e) {
+    // Wait for the paste to complete
+    setTimeout(() => {
+      const input = e.target.value.trim();
+      if (input.startsWith('http://') || input.startsWith('https://')) {
+        Meteor.call('extractUrlTitle', input, (err, result) => {
+          if (!err && result.title) {
+            // Move URL to reference field and set title
+            document.querySelector('[name="github"]').value = input;
+            e.target.value = result.title;
+          }
+        });
+      }
+    }, 0);
+  },
+
   'submit #createTicketForm'(e, t) {
     e.preventDefault();
     const teamId = t.selectedTeamId.get();
