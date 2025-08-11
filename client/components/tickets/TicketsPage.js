@@ -209,10 +209,10 @@ Template.tickets.events({
             }
              // Check if server returned false (no active session)
             if (result === false) {
-            alert('Please start a session before starting an activity.');
-            t.activeTicketId.set(null);
-            return;
-        }
+              alert('Please start a session before starting an activity.');
+              t.activeTicketId.set(null);
+              return;
+            }
           });
 
           // Stop the current ticket in the clock event if needed
