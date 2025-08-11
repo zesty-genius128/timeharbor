@@ -21,7 +21,7 @@
   </header>
   
   {{#if logoutMessage}}
-    <div class="alert {{#if (eq logoutMessage 'You have been logged out successfully.')}}alert-success{{else}}alert-error{{/if}} mx-4 mb-4">
+    <div class="alert alert-error mx-4 mb-4">
       <span>{{logoutMessage}}</span>
     </div>
   {{/if}}
