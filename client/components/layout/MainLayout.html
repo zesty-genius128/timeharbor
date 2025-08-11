@@ -8,7 +8,24 @@
       <a href="/teams" class="btn btn-ghost hover:bg-primary-focus">Teams</a>
       <a href="/tickets" class="btn btn-ghost hover:bg-primary-focus">Projects</a>
     </nav>
+    <div class="flex-none">
+      <button id="logoutBtn" class="btn btn-outline btn-error" {{logoutBtnAttrs}}>
+        {{#if isLogoutLoading}}
+          <span class="loading loading-spinner loading-sm"></span>
+          Logging out...
+        {{else}}
+          Logout
+        {{/if}}
+      </button>
+    </div>
   </header>
+  
+  {{#if logoutMessage}}
+    <div class="alert {{#if (eq logoutMessage 'You have been logged out successfully.')}}alert-success{{else}}alert-error{{/if}} mx-4 mb-4">
+      <span>{{logoutMessage}}</span>
+    </div>
+  {{/if}}
+  
   <main class="container mx-auto px-4">
     {{> Template.dynamic template=main}}
   </main>
