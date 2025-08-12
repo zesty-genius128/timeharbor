@@ -99,17 +99,35 @@ Template.tickets.helpers({
     if (!clockEvent) return 0;
     return calculateTotalTime(clockEvent);  // Using imported utility
   },
+  // Helper to show current active ticket info
+  currentActiveTicketInfo() {
+    const activeTicketId = Template.instance().activeTicketId.get();
+    if (!activeTicketId) return null;
+    
+    const ticket = Tickets.findOne(activeTicketId);
+    if (!ticket) return null;
+    
+    return {
+      id: ticket._id,
+      title: ticket.title,
+      isRunning: !!ticket.startTimestamp
+    };
+  },
    // Helper for button classes
    getButtonClasses(ticketId) {
     const isActive = Template.instance().activeTicketId.get() === ticketId;
     const teamId = Template.instance().selectedTeamId.get();
     const hasActiveSession = teamId ? !!ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null }) : false;
+    const hasOtherActiveTicket = Template.instance().activeTicketId.get() && Template.instance().activeTicketId.get() !== ticketId;
+    
     if (isActive) {
-      return 'btn btn-outline btn-neutral';
-    } else if (hasActiveSession) {
-      return 'btn btn-outline btn-neutral';
+      return 'btn btn-outline btn-neutral'; // Active ticket - can stop
+    } else if (hasActiveSession && !hasOtherActiveTicket) {
+      return 'btn btn-outline btn-neutral'; // Can start - no other active ticket
+    } else if (hasActiveSession && hasOtherActiveTicket) {
+      return 'btn btn-disabled'; // Cannot start - another ticket is active
     } else {
-      return 'btn btn-disabled';
+      return 'btn btn-disabled'; // No active session
     }
   },
   // Helper for button tooltip
@@ -117,15 +135,45 @@ Template.tickets.helpers({
     const isActive = Template.instance().activeTicketId.get() === ticketId;
     const teamId = Template.instance().selectedTeamId.get();
     const hasActiveSession = teamId ? !!ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null }) : false;
+    const hasOtherActiveTicket = Template.instance().activeTicketId.get() && Template.instance().activeTicketId.get() !== ticketId;
+    
     if (isActive) {
       return 'Click to stop this activity';
-    } else if (hasActiveSession) {
+    } else if (hasActiveSession && !hasOtherActiveTicket) {
       return 'Click to start this activity';
+    } else if (hasActiveSession && hasOtherActiveTicket) {
+      return 'Stop the current activity first';
     } else {
       return 'Start a session first to begin activities';
     }
   },
 });
+
+// Helper function to start a new ticket
+const startNewTicket = (ticketId, templateInstance, clockEvent) => {
+  // Set the new active ticket
+  templateInstance.activeTicketId.set(ticketId);
+  const now = Date.now();
+  
+  // Start the new timer
+  Meteor.call('updateTicketStart', ticketId, now, (err) => {
+    if (err) {
+      alert('Failed to start timer: ' + err.reason);
+      templateInstance.activeTicketId.set(null);
+      return;
+    }
+    
+    // If user is clocked in, add the new ticket timing entry to the clock event
+    if (clockEvent) {
+      Meteor.call('clockEventAddTicket', clockEvent._id, ticketId, now, (err) => {
+        if (err) {
+          console.error('Failed to add ticket to clock event:', err);
+        }
+      });
+    }
+  });
+};
+
 // Rest of the events code remains unchanged
 Template.tickets.events({
   'change #teamSelect'(e, t) {
@@ -192,82 +240,69 @@ Template.tickets.events({
     const isActive = t.activeTicketId.get() === ticketId;
     const ticket = Tickets.findOne(ticketId);
     const teamId = t.selectedTeamId.get();
+
     // Check if user is clocked in for this team
     const clockEvent = ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
+    
     if (!isActive) {
       // Check if session is active before allowing activity start
       if (!clockEvent) {
         alert('Please start a session before starting an activity.');
         return;
       }
+      
       // Stop any currently active ticket first
       const currentActiveTicketId = t.activeTicketId.get();
       if (currentActiveTicketId) {
         const currentTicket = Tickets.findOne(currentActiveTicketId);
         if (currentTicket && currentTicket.startTimestamp) {
           const now = Date.now();
-          // Stop the current ticket
-          Meteor.call('updateTicketStart', ticketId, now, (err, result) => {
+          
+          // Stop the current ticket properly
+          Meteor.call('updateTicketStop', currentActiveTicketId, now, (err) => {
             if (err) {
               alert('Failed to stop current timer: ' + err.reason);
               return;
             }
-             // Check if server returned false (no active session)
-            if (result === false) {
-              alert('Please start a session before starting an activity.');
-              t.activeTicketId.set(null);
-              return;
+            
+            // Stop the current ticket in the clock event
+            if (clockEvent) {
+              Meteor.call('clockEventStopTicket', clockEvent._id, currentActiveTicketId, now, (err) => {
+                if (err) {
+                  console.error('Failed to stop ticket in clock event:', err);
+                }
+              });
             }
+            
+            // Now start the new ticket
+            startNewTicket(ticketId, t, clockEvent);
           });
-
-          // Stop the current ticket in the clock event if needed
+        } else {
+          // No current active ticket, start new one directly
+          startNewTicket(ticketId, t, clockEvent);
+        }
+      } else {
+        // No current active ticket, start new one directly
+        startNewTicket(ticketId, t, clockEvent);
+      }
+    } else {
+      // Stop the currently active ticket
+      const now = Date.now();
+      Meteor.call('updateTicketStop', ticketId, now, (err) => {
+        if (err) {
+          alert('Failed to stop timer: ' + err.reason);
+        } else {
+          // If user is clocked in, stop the ticket in the clock event
           if (clockEvent) {
-            Meteor.call('clockEventStopTicket', clockEvent._id, currentActiveTicketId, now, (err) => {
+            Meteor.call('clockEventStopTicket', clockEvent._id, ticketId, now, (err) => {
               if (err) {
-                alert('Failed to stop current ticket in clock event: ' + err.reason);
-                return;
+                console.error('Failed to stop ticket in clock event:', err);
               }
             });
           }
-        }
-      }
-      // Start the new timer
-      t.activeTicketId.set(ticketId);
-      const now = Date.now();
-      Meteor.call('updateTicketStart', ticketId, now, (err) => {
-        if (err) {
-          alert('Failed to start timer: ' + err.reason);
-          return;
+          t.activeTicketId.set(null);
         }
       });
-      // If user is clocked in, add the new ticket timing entry to the clock event
-      // Note: Initial accumulated time is now handled server-side in clockEventAddTicket
-      if (clockEvent) {
-        Meteor.call('clockEventAddTicket', clockEvent._id, ticketId, now, (err) => {
-          if (err) {
-            alert('Failed to add ticket to clock event: ' + err.reason);
-          }
-        });
-      }
-    } else {
-      // Stop the timer: calculate elapsed, add to accumulatedTime, clear startTimestamp
-      if (ticket && ticket.startTimestamp) {
-        const now = Date.now();
-        Meteor.call('updateTicketStop', ticketId, now, (err) => {
-          if (err) {
-            alert('Failed to stop timer: ' + err.reason);
-          }
-        });
-        // If user is clocked in, stop the ticket timing in the clock event
-        if (clockEvent) {
-          Meteor.call('clockEventStopTicket', clockEvent._id, ticketId, now, (err) => {
-            if (err) {
-              alert('Failed to stop ticket in clock event: ' + err.reason);
-            }
-          });
-        }
-      }
-      t.activeTicketId.set(null);
     }
   },
   'click #clockInOut'(e, t) {
