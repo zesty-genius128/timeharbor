@@ -1,5 +1,6 @@
 import { Meteor } from 'meteor/meteor';
 import { check } from 'meteor/check';
+import { ServiceConfiguration } from 'meteor/service-configuration';
 import { Tickets, Teams, Sessions, ClockEvents } from '../collections.js';
 // Import authentication methods
 import { authMethods } from './methods/auth.js';
@@ -9,6 +10,37 @@ import { teamMethods } from './methods/teams.js';
 import { ticketMethods } from './methods/tickets.js';
 import { clockEventMethods } from './methods/clockEvents.js';
 Meteor.startup(async () => {
+  // Configure Google OAuth
+  if (Meteor.settings && Meteor.settings.google) {
+    await ServiceConfiguration.configurations.upsertAsync(
+      { service: 'google' },                    // Find existing Google service config
+      {
+        $set: {                                 // Update or create with these settings
+          clientId: Meteor.settings.google.clientId,           // Your Google Client ID
+          secret: Meteor.settings.google.clientSecret,         // Your Google Client Secret
+          loginStyle: 'popup'                                  // Use popup instead of redirect
+        }
+      }
+    );
+    console.log('Google OAuth configured successfully');
+  } else {
+    console.error('Google OAuth settings not found. Please check your settings.json file.');
+  }
+
+  // Configure additional find user for Google OAuth
+  Accounts.setAdditionalFindUserOnExternalLogin(
+    ({ serviceName, serviceData }) => {
+      if (serviceName === "google") {
+        // Note: Consider security implications. If someone other than the owner
+        // gains access to the account on the third-party service they could use
+        // the e-mail set there to access the account on your app.
+        // Most often this is not an issue, but as a developer you should be aware
+        // of how bad actors could play.
+        return Accounts.findUserByEmail(serviceData.email);
+      }
+    }
+  );
+
   // Code to run on server startup
   if (await Tickets.find().countAsync() === 0) {
     await Tickets.insertAsync({ title: 'Sample Ticket', description: 'This is a sample ticket.', createdAt: new Date() });
