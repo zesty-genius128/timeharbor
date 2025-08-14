@@ -2,7 +2,7 @@ import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
 
 // Simple state management using ReactiveVar (built-in)
-const authFormType = new ReactiveVar('login');
+const authFormType = new ReactiveVar('hidden'); // Start with hidden form
 
 // Export for navigation
 export const currentScreen = new ReactiveVar('authPage');
@@ -10,12 +10,18 @@ export const currentScreen = new ReactiveVar('authPage');
 // Clean template definition
 Template.authPage.helpers({
   showLoginForm: () => authFormType.get() === 'login',
-  showSignupForm: () => authFormType.get() === 'signup'
+  showSignupForm: () => authFormType.get() === 'signup',
+  showEmailForm: () => authFormType.get() !== 'hidden' // Show when not hidden
 });
 
 Template.authPage.events({
   'click #showSignupBtn': () => authFormType.set('signup'),
   'click #showLoginBtn': () => authFormType.set('login'),
+  
+  // Toggle for Login with Gmail button
+  'click #showEmailForm': () => {
+    authFormType.set(authFormType.get() === 'hidden' ? 'login' : 'hidden');
+  },
   
   'submit #signupForm'(event) {
     event.preventDefault();
