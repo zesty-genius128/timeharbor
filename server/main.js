@@ -9,22 +9,31 @@ import { teamMethods } from './methods/teams.js';
 // Import ticket and clock event methods
 import { ticketMethods } from './methods/tickets.js';
 import { clockEventMethods } from './methods/clockEvents.js';
+
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+dotenv.config();
+
 Meteor.startup(async () => {
-  // Configure Google OAuth
-  if (Meteor.settings && Meteor.settings.google) {
+  // Configure Google OAuth from environment variables
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  
+  if (googleClientId && googleClientSecret) {
     await ServiceConfiguration.configurations.upsertAsync(
-      { service: 'google' },                    // Find existing Google service config
+      { service: 'google' },
       {
-        $set: {                                 // Update or create with these settings
-          clientId: Meteor.settings.google.clientId,           // Your Google Client ID
-          secret: Meteor.settings.google.clientSecret,         // Your Google Client Secret
-          loginStyle: 'popup'                                  // Use popup instead of redirect
+        $set: {
+          clientId: googleClientId,
+          secret: googleClientSecret,
+          loginStyle: 'popup'
         }
       }
     );
-    console.log('Google OAuth configured successfully');
+    console.log('Google OAuth configured successfully from environment variables');
   } else {
-    console.error('Google OAuth settings not found. Please check your settings.json file.');
+    console.error('Google OAuth environment variables not found. Please check your .env file.');
+    console.error('Required: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
   }
 
   // Configure additional find user for Google OAuth
