@@ -17,7 +17,7 @@ dotenv.config();
 Meteor.startup(async () => {
   // Configure Google OAuth from environment variables
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
-  const googleClientSecret = process.env.GOOGLE_SECRET;
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
   
   if (googleClientId && googleClientSecret) {
     await ServiceConfiguration.configurations.upsertAsync(
@@ -33,7 +33,7 @@ Meteor.startup(async () => {
     console.log('Google OAuth configured successfully from environment variables');
   } else {
     console.error('Google OAuth environment variables not found. Please check your .env file.');
-    console.error('Required: GOOGLE_CLIENT_ID and GOOGLE_SECRET');
+    console.error('Required: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
   }
 
   // Configure additional find user for Google OAuth
