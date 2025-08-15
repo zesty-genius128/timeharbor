@@ -33,7 +33,7 @@ Meteor.startup(async () => {
     console.log('Google OAuth configured successfully from environment variables');
   } else {
     console.error('Google OAuth environment variables not found. Please check your .env file.');
-    console.error('Required: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
+    console.error('Required: GOOGLE_CLIENT_ID and GOOGLE_SECRET');
   }
 
   // Configure additional find user for Google OAuth
