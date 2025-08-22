@@ -5,11 +5,7 @@ import { ReactiveVar } from 'meteor/reactive-var';
 const authFormType = new ReactiveVar('hidden'); // Start with hidden form
 
 // Export for navigation
-const currentScreen = new ReactiveVar('authPage');
-const isLogoutLoading = new ReactiveVar(false);
-const logoutMessage = new ReactiveVar('');
-export { currentScreen, isLogoutLoading, logoutMessage };
-
+export const currentScreen = new ReactiveVar('authPage');
 
 // Template lifecycle
 Template.authPage.onCreated(function() {
