@@ -81,17 +81,25 @@ Meteor.publish('teamDetails', function (teamId) {
 });
 
 Meteor.publish('teamMembers', async function (teamIds) {
-  check(teamIds, [String]);
+  // Filter out null/undefined values before validation
+  const validTeamIds = teamIds.filter(id => id !== null && id !== undefined && typeof id === 'string');
+  
+  check(validTeamIds, [String]);
+  
   // Only allow if user is a member of all requested teams
-  const teams = await Teams.find({ _id: { $in: teamIds }, members: this.userId }).fetchAsync();
-  const userIds = Array.from(new Set(teams.flatMap(team => team.members)));
+  const teams = await Teams.find({ _id: { $in: validTeamIds }, members: this.userId }).fetchAsync();
+  const userIds = Array.from(new Set(teams.flatMap(team => team.members || [])));
   return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
 });
 
 Meteor.publish('teamTickets', function (teamIds) {
-  check(teamIds, [String]);
+  // Filter out null/undefined values before validation
+  const validTeamIds = teamIds.filter(id => id !== null && id !== undefined && typeof id === 'string');
+  
+  check(validTeamIds, [String]);
+  
   // Only publish tickets for this team that were created by the current user
-  return Tickets.find({ teamId: { $in: teamIds }, createdBy: this.userId });
+  return Tickets.find({ teamId: { $in: validTeamIds }, createdBy: this.userId });
 });
 
 Meteor.publish('clockEventsForUser', function () {
@@ -101,19 +109,36 @@ Meteor.publish('clockEventsForUser', function () {
 });
 
 Meteor.publish('clockEventsForTeams', async function (teamIds) {
-  check(teamIds, [String]);
+  // Filter out null/undefined values before validation
+  const validTeamIds = teamIds.filter(id => id !== null && id !== undefined && typeof id === 'string');
+  
+  check(validTeamIds, [String]);
+  
   // Only publish clock events for teams the user leads
-  const leaderTeams = await Teams.find({ leader: this.userId, _id: { $in: teamIds } }).fetchAsync();
+  const leaderTeams = await Teams.find({ leader: this.userId, _id: { $in: validTeamIds } }).fetchAsync();
   const allowedTeamIds = leaderTeams.map(t => t._id);
   return ClockEvents.find({ teamId: { $in: allowedTeamIds } });
 });
 
 Meteor.publish('usersByIds', async function (userIds) {
-  check(userIds, [String]);
+  // Filter out null/undefined values before validation
+  const validUserIds = userIds.filter(id => id !== null && id !== undefined && typeof id === 'string');
+  
+  check(validUserIds, [String]);
+  
   // Only publish users that are in teams the current user is a member or leader of
   const userTeams = await Teams.find({ $or: [{ members: this.userId }, { leader: this.userId }] }).fetchAsync();
-  const allowedUserIds = Array.from(new Set(userTeams.flatMap(team => team.members.concat([team.leader]))));
-  const filteredUserIds = userIds.filter(id => allowedUserIds.includes(id));
+  
+  // Filter out null/undefined values and flatten the arrays safely
+  const allowedUserIds = Array.from(new Set(
+    userTeams.flatMap(team => {
+      const members = team.members || [];
+      const leader = team.leader || null;
+      return [...members, leader].filter(id => id !== null && id !== undefined);
+    })
+  ));
+  
+  const filteredUserIds = validUserIds.filter(id => allowedUserIds.includes(id));
   return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { username: 1 } });
 });
 
