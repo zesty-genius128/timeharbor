@@ -6,8 +6,13 @@ import { Tracker } from 'meteor/tracker';
 const authFormType = new ReactiveVar('hidden'); // Start with hidden form
 
 // Export for navigation
-export const currentScreen = new ReactiveVar('authPage');
+const currentScreen = new ReactiveVar('authPage');
 
+const isLogoutLoading = new ReactiveVar(false);
+const logoutMessage = new ReactiveVar('');
+
+// Export for use in other components
+export { currentScreen, isLogoutLoading, logoutMessage };
 // Template lifecycle
 Template.authPage.onCreated(function() {
   // Initialize template-specific reactive variables
