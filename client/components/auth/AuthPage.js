@@ -1,6 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
-import { Tracker } from 'meteor/tracker';
+
 
 // Simple state management using ReactiveVar (built-in)
 const authFormType = new ReactiveVar('hidden'); // Start with hidden form
@@ -66,10 +66,37 @@ Template.authPage.events({
         // The autorun in authPage will handle the redirect to main page
       }
     });
+  // Google OAuth Login
+  'click #at-google'(event, template) {
+    event.preventDefault();                                    // Prevent default button behavior
+    template.loginError.set('');                              // Clear any previous errors
+    template.isLoginLoading.set(true);                        // Show loading state
+    
+    // Use Meteor's built-in Google OAuth
+    Meteor.loginWithGoogle({
+      requestPermissions: ['email', 'profile']                 // Request user's email and profile info
+    }, (err) => {                                             // Callback function to handle result
+      template.isLoginLoading.set(false);                     // Hide loading state
+      if (err) {                                              // If there's an error
+        console.error('Google login error:', err);            // Log error to console
+        template.loginError.set(err.reason || 'Google login failed. Please try again.'); // Show user-friendly error
+      } else {                                                // If login is successful
+        console.log('Google login successful');               // Log success
+        // The autorun in authPage will handle the redirect to main page
+      }
+    });
   },
   
   'submit #signupForm'(event) {
     event.preventDefault();
+    const { username, password, confirmPassword } = event.target;
+    
+    if (password.value !== confirmPassword.value) return alert('Passwords do not match');
+    if (password.value.length < 6) return alert('Password too short');
+    
+    Accounts.createUser({ username: username.value.trim(), password: password.value }, (err) => {
+      if (err) alert('Signup failed: ' + err.reason);
+      else currentScreen.set('mainLayout');
     const { username, password, confirmPassword } = event.target;
     
     if (password.value !== confirmPassword.value) return alert('Passwords do not match');
@@ -84,10 +111,16 @@ Template.authPage.events({
   'submit #loginForm'(event) {
     event.preventDefault();
     const { username, password } = event.target;
+    const { username, password } = event.target;
     
     Meteor.loginWithPassword(username.value.trim(), password.value, (err) => {
       if (err) alert('Login failed: ' + err.reason);
       else currentScreen.set('mainLayout');
+    Meteor.loginWithPassword(username.value.trim(), password.value, (err) => {
+      if (err) alert('Login failed: ' + err.reason);
+      else currentScreen.set('mainLayout');
     });
+  }
+});
   }
 });
