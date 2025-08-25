@@ -58,12 +58,20 @@ Template.admin.onRendered(function () {
       sortable: true, 
       filter: 'agTextColumnFilter' 
     },
-    { 
-      headerName: 'Reviewed', 
-      field: 'reviewedAt', 
-      sortable: true, 
-      valueFormatter: p => p.value ? new Date(p.value).toLocaleString() : '—' 
-    },
+         { 
+       headerName: 'Reviewed', 
+       field: 'reviewedAt', 
+       sortable: true, 
+       cellRenderer: params => {
+         if (!params.value) return '—';
+         const reviewedBy = params.data.reviewedBy;
+         const reviewerName = reviewedBy ? (Meteor.users.findOne(reviewedBy) || {}).username || 'Unknown' : 'Unknown';
+         return `<div class="text-xs">
+           <div>${new Date(params.value).toLocaleString()}</div>
+           <div class="text-gray-500">by ${reviewerName}</div>
+         </div>`;
+       }
+     },
     { 
       headerName: 'Reference', 
       field: 'github', 
@@ -112,10 +120,12 @@ Template.admin.onRendered(function () {
       }
       return;
     }
-    const tickets = Tickets.find({ teamId }).fetch().map(t => ({
-      ...t,
-      createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
-    }));
+         const tickets = Tickets.find({ teamId }).fetch().map(t => ({
+       ...t,
+       createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
+       // Ensure reviewedBy is available for the Reviewed column
+       reviewedBy: t.reviewedBy || null,
+     }));
     if (instance.gridOptions && instance.gridOptions.api) {
       instance.gridOptions.api.setRowData(tickets);
     }
