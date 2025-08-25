@@ -34,9 +34,18 @@
           </div>
         </div>
 
-        <!-- AG Grid -->
+        <!-- AG Grid with Loading State -->
         <div class="overflow-x-auto">
           <div id="adminGrid" class="ag-theme-alpine w-full" style="height: 560px;"></div>
+          
+          <!-- Loading State while waiting for data -->
+          {{#if isWaitingForData}}
+            <div class="flex flex-col items-center justify-center py-20">
+              <div class="loading loading-spinner loading-lg text-primary mb-4"></div>
+              <p class="text-lg text-gray-600">Loading project data...</p>
+              <p class="text-sm text-gray-500 mt-2">Please wait while we fetch the time entries</p>
+            </div>
+          {{/if}}
         </div>
 
         {{#unless hasTickets}}
