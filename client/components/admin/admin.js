@@ -52,26 +52,21 @@ Template.admin.onRendered(function () {
       filter: 'agSetColumnFilter', 
       valueFormatter: p => capitalizeStatus(p.value || 'open') 
     },
+    { headerName: 'Creator', field: 'createdByName', sortable: true, filter: 'agTextColumnFilter' },
     { 
-      headerName: 'Creator', 
-      field: 'createdByName', 
+      headerName: 'Reviewed', 
+      field: 'reviewedAt', 
       sortable: true, 
-      filter: 'agTextColumnFilter' 
+      cellRenderer: params => {
+        if (!params.value) return '—';
+        const reviewedBy = params.data.reviewedBy;
+        const reviewerName = reviewedBy ? (Meteor.users.findOne(reviewedBy) || {}).username || 'Unknown' : 'Unknown';
+        return `<div class="text-xs">
+          <div>${new Date(params.value).toLocaleString()}</div>
+          <div class="text-gray-500">by ${reviewerName}</div>
+        </div>`;
+      }
     },
-         { 
-       headerName: 'Reviewed', 
-       field: 'reviewedAt', 
-       sortable: true, 
-       cellRenderer: params => {
-         if (!params.value) return '—';
-         const reviewedBy = params.data.reviewedBy;
-         const reviewerName = reviewedBy ? (Meteor.users.findOne(reviewedBy) || {}).username || 'Unknown' : 'Unknown';
-         return `<div class="text-xs">
-           <div>${new Date(params.value).toLocaleString()}</div>
-           <div class="text-gray-500">by ${reviewerName}</div>
-         </div>`;
-       }
-     },
     { 
       headerName: 'Reference', 
       field: 'github', 
@@ -84,13 +79,11 @@ Template.admin.onRendered(function () {
     rowSelection: 'multiple',
     suppressRowClickSelection: true,
     onSelectionChanged: () => {
-      if (!instance.gridOptions || !instance.gridOptions.api) return;
+      if (!instance.gridOptions?.api) return;
       const selected = instance.gridOptions.api.getSelectedRows().map(r => r._id);
       instance.selectedTickets.set(selected);
-      const count = selected.length;
-      instance.$('#selectedCount').text(`${count} items selected`);
-      const hasSelection = count > 0;
-      instance.$('#batchReviewed, #batchClosed, #batchDeleted').prop('disabled', !hasSelection);
+      instance.$('#selectedCount').text(`${selected.length} items selected`);
+      instance.$('#batchReviewed, #batchClosed, #batchDeleted').prop('disabled', selected.length === 0);
     },
     defaultColDef: {
       resizable: true,
@@ -99,42 +92,53 @@ Template.admin.onRendered(function () {
     },
   };
 
-  // Lazily create the grid only when the container exists
-  instance.autorun(() => {
-    const gridEl = instance.find('#adminGrid');
-    const teamIdPresent = !!instance.selectedAdminTeamId.get();
-    if (gridEl && teamIdPresent && !gridEl.__ag_initialized) {
-      try {
-        new Grid(gridEl, instance.gridOptions);
-        gridEl.__ag_initialized = true;
-      } catch (e) {}
-    }
-  });
-
-  // Reactively feed data to grid
+  // Create grid when team is selected
   instance.autorun(() => {
     const teamId = instance.selectedAdminTeamId.get();
-    if (!teamId) {
-      if (instance.gridOptions && instance.gridOptions.api) {
-        instance.gridOptions.api.setRowData([]);
+    if (!teamId) return;
+    
+    Meteor.setTimeout(() => {
+      const gridEl = instance.find('#adminGrid');
+      if (gridEl && !gridEl.__ag_initialized) {
+        try {
+          new Grid(gridEl, instance.gridOptions);
+          gridEl.__ag_initialized = true;
+          
+          // Load initial data
+          const tickets = Tickets.find({ teamId }).fetch();
+          if (instance.gridOptions?.api) {
+            const mappedTickets = tickets.map(t => ({
+              ...t,
+              createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
+              reviewedBy: t.reviewedBy || null,
+            }));
+            instance.gridOptions.api.setRowData(mappedTickets);
+          }
+        } catch (e) {
+          console.error('Grid creation failed:', e);
+        }
       }
-      return;
-    }
-         const tickets = Tickets.find({ teamId }).fetch().map(t => ({
-       ...t,
-       createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
-       // Ensure reviewedBy is available for the Reviewed column
-       reviewedBy: t.reviewedBy || null,
-     }));
-    if (instance.gridOptions && instance.gridOptions.api) {
-      instance.gridOptions.api.setRowData(tickets);
-    }
+    }, 200);
+  });
+
+  // Update grid data when tickets change
+  instance.autorun(() => {
+    const teamId = instance.selectedAdminTeamId.get();
+    if (!teamId || !instance.gridOptions?.api) return;
+
+    const tickets = Tickets.find({ teamId }).fetch();
+    const mappedTickets = tickets.map(t => ({
+      ...t,
+      createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
+      reviewedBy: t.reviewedBy || null,
+    }));
+    
+    instance.gridOptions.api.setRowData(mappedTickets);
   });
 });
 
 Template.admin.helpers({
   adminTeams() {
-    // Only show teams where user is admin or leader
     return Teams.find({
       $or: [
         { leader: Meteor.userId() },
@@ -154,27 +158,32 @@ Template.admin.helpers({
   hasTickets() {
     const instance = Template.instance();
     const selectedTeamId = instance.selectedAdminTeamId.get();
-    if (!selectedTeamId) return false;
-    return Tickets.find({ teamId: selectedTeamId }).count() > 0;
+    return selectedTeamId ? Tickets.find({ teamId: selectedTeamId }).count() > 0 : false;
+  },
+
+  isWaitingForData() {
+    const instance = Template.instance();
+    const selectedTeamId = instance.selectedAdminTeamId.get();
+    return selectedTeamId && !instance.find('#adminGrid')?.__ag_initialized;
   }
 });
 
 Template.admin.events({
   'change #adminTeamSelect'(e, t) {
     const teamId = e.target.value || null;
+    
+    // Reset grid state when changing teams
+    const gridEl = t.find('#adminGrid');
+    if (gridEl?.__ag_initialized && t.gridOptions?.api) {
+      t.gridOptions.api.destroy();
+      gridEl.__ag_initialized = false;
+    }
+    
     t.selectedAdminTeamId.set(teamId);
     t.selectedTickets.set([]);
     t.$('#selectedCount').text('0 items selected');
     t.$('#batchReviewed, #batchClosed, #batchDeleted').prop('disabled', true);
-    
-    if (t.gridOptions && t.gridOptions.api) {
-      t.gridOptions.api.deselectAll();
-    }
   },
-
-
-
-
 
   'click #batchReviewed'(e, t) {
     callBatch(t, 'reviewed');
@@ -214,7 +223,7 @@ function callBatch(t, status) {
       alert('Error updating tickets: ' + error.message);
     } else {
       t.selectedTickets.set([]);
-      if (t.gridOptions) t.gridOptions.api.deselectAll();
+      if (t.gridOptions?.api) t.gridOptions.api.deselectAll();
       t.$('#selectedCount').text('0 items selected');
       t.$('#batchReviewed, #batchClosed, #batchDeleted').prop('disabled', true);
     }
