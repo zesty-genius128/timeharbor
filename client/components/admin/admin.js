@@ -4,6 +4,8 @@ import { ReactiveVar } from 'meteor/reactive-var';
 import { Teams, Tickets } from '../../../collections.js';
 import { Grid } from 'ag-grid-community';
 
+const GRID_INIT_DELAY = 200;
+
 Template.admin.onCreated(function () {
   this.selectedAdminTeamId = new ReactiveVar(null);
   this.selectedTickets = new ReactiveVar([]);
@@ -92,6 +94,15 @@ Template.admin.onRendered(function () {
     },
   };
 
+  // Helper function to map tickets with user data
+  const mapTicketsWithUserData = (tickets) => {
+    return tickets.map(t => ({
+      ...t,
+      createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
+      reviewedBy: t.reviewedBy || null,
+    }));
+  };
+
   // Create grid when team is selected
   instance.autorun(() => {
     const teamId = instance.selectedAdminTeamId.get();
@@ -107,18 +118,13 @@ Template.admin.onRendered(function () {
           // Load initial data
           const tickets = Tickets.find({ teamId }).fetch();
           if (instance.gridOptions?.api) {
-            const mappedTickets = tickets.map(t => ({
-              ...t,
-              createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
-              reviewedBy: t.reviewedBy || null,
-            }));
-            instance.gridOptions.api.setRowData(mappedTickets);
+            instance.gridOptions.api.setRowData(mapTicketsWithUserData(tickets));
           }
         } catch (e) {
           console.error('Grid creation failed:', e);
         }
       }
-    }, 200);
+    }, GRID_INIT_DELAY);
   });
 
   // Update grid data when tickets change
@@ -127,13 +133,7 @@ Template.admin.onRendered(function () {
     if (!teamId || !instance.gridOptions?.api) return;
 
     const tickets = Tickets.find({ teamId }).fetch();
-    const mappedTickets = tickets.map(t => ({
-      ...t,
-      createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
-      reviewedBy: t.reviewedBy || null,
-    }));
-    
-    instance.gridOptions.api.setRowData(mappedTickets);
+    instance.gridOptions.api.setRowData(mapTicketsWithUserData(tickets));
   });
 });
 
