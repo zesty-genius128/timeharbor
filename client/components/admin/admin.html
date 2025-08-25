@@ -14,145 +14,68 @@
     </div>
 
     {{#if selectedAdminTeamId}}
-      {{#if adminTickets}}
-        <!-- Filter and Sort Controls -->
-        <div class="card bg-base-100 shadow p-4 mb-4">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="label">Filter by Title:</label>
-              <input type="text" id="titleFilter" placeholder="Filter by title..." class="input input-bordered w-full" />
-            </div>
-            <div>
-              <label class="label">Filter by Status:</label>
-              <select id="statusFilter" class="select select-bordered w-full">
-                <option value="">All Statuses</option>
-                <option value="open">Open</option>
-                <option value="reviewed">Reviewed</option>
-                <option value="closed">Closed</option>
-                <option value="deleted">Deleted</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">Filter by Creator:</label>
-              <select id="creatorFilter" class="select select-bordered w-full">
-                <option value="">All Creators</option>
-                {{#each uniqueCreators}}
-                  <option value="{{_id}}">{{username}}</option>
-                {{/each}}
-              </select>
-            </div>
-          </div>
-        </div>
+
 
         <!-- Batch Actions -->
         <div class="card bg-base-100 shadow p-4 mb-4">
           <div class="flex flex-wrap items-center gap-4">
-            <label class="label">
-              <input type="checkbox" id="selectAll" class="checkbox" />
-              <span class="label-text ml-2">Select All</span>
-            </label>
             <div class="flex gap-2">
               <button id="batchReviewed" class="btn btn-primary btn-sm" disabled>Mark as Reviewed</button>
               <button id="batchClosed" class="btn btn-success btn-sm" disabled>Mark as Closed</button>
               <button id="batchDeleted" class="btn btn-error btn-sm" disabled>Mark as Deleted</button>
             </div>
             <span id="selectedCount" class="text-sm text-gray-600">0 items selected</span>
-            <!-- Help tip -->
-            <div class="tooltip tooltip-right" data-tip="Closed status indicates the entry is finalized. For volunteer projects, this means complete. For paid projects, this may indicate compensation is processed.">
-              <button class="btn btn-circle btn-ghost btn-xs">?</button>
-            </div>
+            <!-- Help button -->
+            <button id="helpButton" class="btn btn-circle btn-ghost btn-xs" title="Help with status meanings">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <!-- Table -->
+        <!-- AG Grid -->
         <div class="overflow-x-auto">
-          <table class="table table-zebra w-full">
-            <thead>
-              <tr>
-                <th>
-                  <input type="checkbox" id="headerSelectAll" class="checkbox" />
-                </th>
-                <th class="cursor-pointer sortable" data-sort="title">
-                  Title 
-                  <span class="sort-indicator">↕</span>
-                </th>
-                <th class="cursor-pointer sortable" data-sort="createdAt">
-                  Created 
-                  <span class="sort-indicator">↕</span>
-                </th>
-                <th class="cursor-pointer sortable" data-sort="accumulatedTime">
-                  Time 
-                  <span class="sort-indicator">↕</span>
-                </th>
-                <th class="cursor-pointer sortable" data-sort="status">
-                  Status 
-                  <span class="sort-indicator">↕</span>
-                </th>
-                <th class="cursor-pointer sortable" data-sort="createdBy">
-                  Creator 
-                  <span class="sort-indicator">↕</span>
-                </th>
-                <th class="cursor-pointer sortable" data-sort="reviewedAt">
-                  Reviewed 
-                  <span class="sort-indicator">↕</span>
-                </th>
-                <th>Reference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {{#each filteredAndSortedTickets}}
-                <tr>
-                  <td>
-                    <input type="checkbox" class="checkbox ticket-checkbox" data-ticket-id="{{_id}}" />
-                  </td>
-                  <td class="font-medium">{{title}}</td>
-                  <td>{{formatDate createdAt}}</td>
-                  <td>
-                    <span class="badge" style="background-color: #4A5568; color: white;">
-                      {{formatTime accumulatedTime}}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="badge {{statusBadgeClass status}}">
-                      {{capitalizeStatus status}}
-                    </span>
-                  </td>
-                  <td>{{creatorName createdBy}}</td>
-                  <td>
-                    {{#if reviewedAt}}
-                      {{formatDate reviewedAt}}<br>
-                      <small class="text-gray-500">by {{reviewerName reviewedBy}}</small>
-                    {{else}}
-                      —
-                    {{/if}}
-                  </td>
-                  <td>
-                    {{#if github}}
-                      <a href="{{githubLink github}}" target="_blank" class="link text-primary hover:text-primary-focus">View</a>
-                    {{else}}
-                      —
-                    {{/if}}
-                  </td>
-                </tr>
-              {{/each}}
-            </tbody>
-          </table>
+          <div id="adminGrid" class="ag-theme-alpine w-full" style="height: 560px;"></div>
         </div>
 
-        {{#unless filteredAndSortedTickets}}
+        {{#unless hasTickets}}
           <div class="alert alert-info">
-            <p>No time entries match the current filters.</p>
+            <p>No time entries found for this project.</p>
           </div>
         {{/unless}}
-      {{else}}
-        <div class="alert alert-info">
-          <p>No time entries found for this project.</p>
-        </div>
-      {{/if}}
     {{else}}
       <div class="alert alert-warning">
         <p>Please select a project to review time entries. You can only review projects where you are an admin or leader.</p>
       </div>
-    {{/if}}
-  </div>
-</template>
+         {{/if}}
+   </div>
+
+   <!-- Help Modal -->
+   <div id="helpModal" class="modal">
+     <div class="modal-box">
+       <h3 class="font-bold text-lg mb-4">Status Meanings</h3>
+       <div class="space-y-3">
+         <div>
+           <span class="badge badge-primary">Open</span>
+           <p class="text-sm mt-1">Time entry is active and being worked on</p>
+         </div>
+         <div>
+           <span class="badge badge-info">Reviewed</span>
+           <p class="text-sm mt-1">Entry has been reviewed by admin/leader</p>
+         </div>
+         <div>
+           <span class="badge badge-success">Closed</span>
+           <p class="text-sm mt-1">Entry is finalized. For volunteer projects: complete. For paid projects: may indicate compensation processed.</p>
+         </div>
+         <div>
+           <span class="badge badge-error">Deleted</span>
+           <p class="text-sm mt-1">Entry has been marked for removal</p>
+         </div>
+       </div>
+       <div class="modal-action">
+         <button id="closeHelpModal" class="btn">Close</button>
+       </div>
+     </div>
+   </div>
+ </template>
