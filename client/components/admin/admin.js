@@ -155,17 +155,8 @@ Template.admin.helpers({
     return Template.instance().selectedAdminTeamId.get() === teamId ? 'selected' : '';
   },
 
-  hasTickets() {
-    const instance = Template.instance();
-    const selectedTeamId = instance.selectedAdminTeamId.get();
-    return selectedTeamId ? Tickets.find({ teamId: selectedTeamId }).count() > 0 : false;
-  },
 
-  isWaitingForData() {
-    const instance = Template.instance();
-    const selectedTeamId = instance.selectedAdminTeamId.get();
-    return selectedTeamId && !instance.find('#adminGrid')?.__ag_initialized;
-  }
+
 });
 
 Template.admin.events({
