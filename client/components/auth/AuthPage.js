@@ -64,12 +64,15 @@ Template.authPage.events({
   
   'submit #signupForm'(event) {
     event.preventDefault();
-    const { username, password, confirmPassword } = event.target;
+    const { email, password, confirmPassword } = event.target;
     
     if (password.value !== confirmPassword.value) return alert('Passwords do not match');
     if (password.value.length < 6) return alert('Password too short');
     
-    Accounts.createUser({ username: username.value.trim(), password: password.value }, (err) => {
+    Accounts.createUser({ 
+      email: email.value.trim(), 
+      password: password.value 
+    }, (err) => {
       if (err) alert('Signup failed: ' + err.reason);
       else currentScreen.set('mainLayout');
     });
@@ -77,9 +80,9 @@ Template.authPage.events({
   
   'submit #loginForm'(event) {
     event.preventDefault();
-    const { username, password } = event.target;
+    const { email, password } = event.target;
     
-    Meteor.loginWithPassword(username.value.trim(), password.value, (err) => {
+    Meteor.loginWithPassword(email.value.trim(), password.value, (err) => {
       if (err) alert('Login failed: ' + err.reason);
       else currentScreen.set('mainLayout');
     });
