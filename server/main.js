@@ -50,6 +50,13 @@ Meteor.startup(async () => {
     }
   );
 
+  // Configure Meteor to use email-based accounts
+  Accounts.config({
+    forbidClientAccountCreation: false, // Allow client-side account creation
+    sendVerificationEmail: false, // Don't require email verification for now
+    loginExpirationInDays: 90 // Session expires after 90 days
+  });
+
   // Code to run on server startup
   if (await Tickets.find().countAsync() === 0) {
     await Tickets.insertAsync({ title: 'Sample Ticket', description: 'This is a sample ticket.', createdAt: new Date() });
@@ -89,7 +96,7 @@ Meteor.publish('teamMembers', async function (teamIds) {
   // Only allow if user is a member of all requested teams
   const teams = await Teams.find({ _id: { $in: validTeamIds }, members: this.userId }).fetchAsync();
   const userIds = Array.from(new Set(teams.flatMap(team => team.members || [])));
-  return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
+  return Meteor.users.find({ _id: { $in: userIds } }, { fields: { 'emails.address': 1 } });
 });
 
 Meteor.publish('teamTickets', function (teamIds) {
@@ -139,7 +146,7 @@ Meteor.publish('usersByIds', async function (userIds) {
   ));
   
   const filteredUserIds = validUserIds.filter(id => allowedUserIds.includes(id));
-  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { username: 1 } });
+  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { 'emails.address': 1 } });
 });
 
 Meteor.methods({
@@ -152,6 +159,6 @@ Meteor.methods({
     check(name, String);
     // Logic to create a participant account
     console.log(`Creating participant with name: ${name}`);
-    Accounts.createUser({ username: name });
+    Accounts.createUser({ email: name });
   },
 });
