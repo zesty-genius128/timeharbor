@@ -45,10 +45,10 @@
         </div>
       {{/if}}
 
-      <!-- Login with Gmail Button -->
+      <!-- Login with Email Button -->
       <div class="text-center mb-6">
         <button type="button" id="showEmailForm" class="btn btn-link text-blue-600 hover:text-blue-800 font-bold">
-          Login with Gmail
+          Login with Email
         </button>
       </div>
 
@@ -60,7 +60,7 @@
             {{#if showLoginForm}}
               <form id="loginForm" class="space-y-4">
                 <h2 class="text-2xl font-bold text-center mb-6">Welcome Back</h2>
-                {{> formField id="loginUsername" name="username" type="text" label="Username" placeholder="Enter username"}}
+                {{> formField id="loginEmail" name="email" type="email" label="Email" placeholder="Enter email address"}}
                 {{> formField id="loginPassword" name="password" type="password" label="Password" placeholder="Enter password"}}
                 <button type="submit" class="btn btn-primary w-full">Log In</button>
                 
@@ -78,7 +78,7 @@
             {{#if showSignupForm}}
               <form id="signupForm" class="space-y-4">
                 <h2 class="text-2xl font-bold text-center mb-6">Create Account</h2>
-                {{> formField id="signupUsername" name="username" type="text" label="Username" placeholder="Choose username"}}
+                {{> formField id="signupEmail" name="email" type="email" label="Email" placeholder="Enter email address"}}
                 {{> formField id="signupPassword" name="password" type="password" label="Password" placeholder="Choose password"}}
                 {{> formField id="confirmPassword" name="confirmPassword" type="password" label="Confirm Password" placeholder="Confirm password"}}
                 <button type="submit" class="btn btn-primary w-full">Create Account</button>
