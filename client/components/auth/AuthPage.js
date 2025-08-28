@@ -32,6 +32,16 @@ Template.authPage.helpers({
   isLoginLoading: () => Template.instance().isLoginLoading.get()
 });
 
+// Helper for formField template
+Template.formField.helpers({
+  emailPattern() {
+    return this.type === 'email' ? '[^@]+@[^@]+\\.[^@]+' : '';
+  },
+  emailTitle() {
+    return this.type === 'email' ? 'Please enter a valid email with domain (e.g., user@example.com)' : '';
+  }
+});
+
 Template.authPage.events({
   'click #showSignupBtn': () => authFormType.set('signup'),
   'click #showLoginBtn': () => authFormType.set('login'),
