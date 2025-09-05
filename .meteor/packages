@@ -27,3 +27,4 @@ accounts-base
 accounts-password
 accounts-google
 service-configuration
+accounts-github
