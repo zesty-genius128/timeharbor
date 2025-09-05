@@ -12,7 +12,7 @@ import { clockEventMethods } from './methods/clockEvents.js';
 
 // Load environment variables from .env file
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '.env' });
 
 Meteor.startup(async () => {
   // Configure Google OAuth from environment variables
@@ -36,7 +36,28 @@ Meteor.startup(async () => {
     console.error('Required: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
   }
 
-  // Configure additional find user for Google OAuth
+  // Configure GitHub OAuth from environment variables
+  const githubClientId = process.env.GITHUB_CLIENT_ID;
+  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+  
+  if (githubClientId && githubClientSecret) {
+    await ServiceConfiguration.configurations.upsertAsync(
+      { service: 'github' },
+      {
+        $set: {
+          clientId: githubClientId,
+          secret: githubClientSecret,
+          loginStyle: 'popup'
+        }
+      }
+    );
+    console.log('GitHub OAuth configured successfully');
+  } else {
+    console.error('GitHub OAuth environment variables not found. Please check your .env file.');
+    console.error('Required: GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET');
+  }
+
+  // Configure additional find user for OAuth providers
   Accounts.setAdditionalFindUserOnExternalLogin(
     ({ serviceName, serviceData }) => {
       if (serviceName === "google") {
@@ -45,6 +66,12 @@ Meteor.startup(async () => {
         // the e-mail set there to access the account on your app.
         // Most often this is not an issue, but as a developer you should be aware
         // of how bad actors could play.
+        return Accounts.findUserByEmail(serviceData.email);
+      }
+      
+      if (serviceName === "github") {
+        // For GitHub, we can use the email from the service data
+        // GitHub provides email in serviceData.email
         return Accounts.findUserByEmail(serviceData.email);
       }
     }
