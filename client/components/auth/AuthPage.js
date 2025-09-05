@@ -1,5 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
+import { Meteor } from 'meteor/meteor';
 
 // Simple state management using ReactiveVar (built-in)
 const authFormType = new ReactiveVar('hidden'); // Start with hidden form
@@ -67,6 +68,27 @@ Template.authPage.events({
         template.loginError.set(err.reason || 'Google login failed. Please try again.'); // Show user-friendly error
       } else {                                                // If login is successful
         console.log('Google login successful');               // Log success
+        // The autorun in authPage will handle the redirect to main page
+      }
+    });
+  },
+
+  // GitHub OAuth Login
+  'click #at-github'(event, template) {
+    event.preventDefault();                                    // Prevent default button behavior
+    template.loginError.set('');                              // Clear any previous errors
+    template.isLoginLoading.set(true);                        // Show loading state
+    
+    // Use Meteor's built-in GitHub OAuth
+    Meteor.loginWithGithub({
+      requestPermissions: ['user:email']                      // Request user's email
+    }, (err) => {                                             // Callback function to handle result
+      template.isLoginLoading.set(false);                     // Hide loading state
+      if (err) {                                              // If there's an error
+        console.error('GitHub login error:', err);            // Log error to console
+        template.loginError.set(err.reason || 'GitHub login failed. Please try again.'); // Show user-friendly error
+      } else {                                                // If login is successful
+        console.log('GitHub login successful');               // Log success
         // The autorun in authPage will handle the redirect to main page
       }
     });
