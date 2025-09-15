@@ -1,0 +1,45 @@
+<!-- Ozwell Prompt Library Component -->
+<template name="ozwellPromptLibrary">
+  <div class="card bg-base-100 shadow-md mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-lg flex items-center gap-2">
+        ✨ AI Writing Assistant
+        <div class="badge badge-primary badge-sm">Ozwell</div>
+      </h4>
+      <p class="text-sm text-base-content/70 mb-3">
+        Get AI-powered help with your project activities and time tracking
+      </p>
+      
+      <!-- Quick Actions -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {{#each availablePrompts}}
+          <button class="ozwell-prompt-btn btn btn-outline btn-sm flex items-center justify-start gap-2 h-auto py-3 px-3 text-left" 
+                  data-prompt-type="{{id}}"
+                  data-team-id="{{../currentTeamId}}"
+                  title="{{description}}">
+            <span class="text-lg">{{icon}}</span>
+            <div class="flex-1">
+              <div class="font-medium text-xs">{{title}}</div>
+              <div class="text-xs opacity-60">{{description}}</div>
+            </div>
+          </button>
+        {{/each}}
+      </div>
+
+      {{#if showPromptResult}}
+        <div class="mt-4 p-3 bg-base-200 rounded-lg">
+          <div class="flex justify-between items-start mb-2">
+            <h5 class="font-medium text-sm">Generated Content:</h5>
+            <div class="flex gap-1">
+              <button class="btn btn-xs btn-primary" id="copyPromptResult">Copy</button>
+              <button class="btn btn-xs btn-ghost" id="clearPromptResult">×</button>
+            </div>
+          </div>
+          <textarea class="textarea textarea-bordered w-full h-32 text-sm" 
+                    id="promptResultText" 
+                    readonly>{{promptResult}}</textarea>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+</template>

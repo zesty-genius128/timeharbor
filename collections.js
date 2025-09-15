@@ -5,3 +5,6 @@ export const Teams = new Mongo.Collection('teams');
 export const Sessions = new Mongo.Collection('sessions');
 
 export const ClockEvents = new Mongo.Collection('clockevents');
+
+// Ozwell AI Integration Collection
+export const OzwellConversations = new Mongo.Collection('ozwellconversations');

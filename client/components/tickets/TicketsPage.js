@@ -199,6 +199,17 @@ Template.tickets.helpers({
       isRunning: !!ticket.startTimestamp
     } : null;
   },
+  // Helper functions for Ozwell integration
+  stringify(obj) {
+    return JSON.stringify(obj);
+  },
+  object(...keyValuePairs) {
+    const result = {};
+    for (let i = 0; i < keyValuePairs.length; i += 2) {
+      result[keyValuePairs[i]] = keyValuePairs[i + 1];
+    }
+    return result;
+  },
   getButtonClasses(ticketId) {
     const isActive = Template.instance().activeTicketId.get() === ticketId;
     const teamId = Template.instance().selectedTeamId.get();

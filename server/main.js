@@ -1,6 +1,6 @@
 import { Meteor } from 'meteor/meteor';
 import { check } from 'meteor/check';
-import { Tickets, Teams, Sessions, ClockEvents } from '../collections.js';
+import { Tickets, Teams, Sessions, ClockEvents, OzwellConversations } from '../collections.js';
 // Import authentication methods
 import { authMethods } from './methods/auth.js';
 // Import team methods
@@ -8,6 +8,10 @@ import { teamMethods } from './methods/teams.js';
 // Import ticket and clock event methods
 import { ticketMethods } from './methods/tickets.js';
 import { clockEventMethods } from './methods/clockEvents.js';
+// Import Ozwell AI integration methods
+import { ozwellMethods } from './methods/ozwell.js';
+// Import Ozwell prompt library methods
+import { promptLibraryMethods } from './methods/promptLibrary.js';
 Meteor.startup(async () => {
   // Code to run on server startup
   if (await Tickets.find().countAsync() === 0) {
@@ -81,6 +85,8 @@ Meteor.methods({
   ...teamMethods,
   ...ticketMethods,
   ...clockEventMethods,
+  ...ozwellMethods,
+  ...promptLibraryMethods,
 
   'participants.create'(name) {
     check(name, String);

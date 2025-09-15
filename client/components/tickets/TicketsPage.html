@@ -10,6 +10,7 @@
       </select>
       <button id="showCreateTicketForm" class="btn btn-primary">Create Activity</button>
     </div>
+    
     <div class="mb-4 flex items-center gap-4">
       {{#if isClockedInForTeam selectedTeamId}}
         <button id="clockOutBtn" class="btn bg-neutral hover:bg-neutral-focus text-neutral-content">Stop Session</button>
@@ -19,8 +20,28 @@
     </div>
     {{#if showCreateTicketForm}}
       <form id="createTicketForm" class="card bg-base-100 shadow p-4 mb-4 flex flex-col gap-2">
-        <input type="text" name="title" placeholder="Activity Title (e.g., 'Math Homework', 'Robot Assembly')" class="input input-bordered" required />
-        <input type="text" name="github" placeholder="Reference Link or Notes" class="input input-bordered" />
+        <div class="relative">
+          <input type="text" name="title" placeholder="Activity Title (e.g., 'Math Homework', 'Robot Assembly')" class="input input-bordered pr-12 w-full" required />
+          <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+            <div class="pointer-events-auto">
+              {{> ozwellIcon 
+                  inputTarget="input[name='title']" 
+                  contextType="ticket_form" 
+                  contextData=(stringify (object teamId=selectedTeamId formType="activity_title"))}}
+            </div>
+          </div>
+        </div>
+        <div class="relative">
+          <input type="text" name="github" placeholder="Reference Link or Notes" class="input input-bordered pr-12 w-full" />
+          <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+            <div class="pointer-events-auto">
+              {{> ozwellIcon 
+                  inputTarget="input[name='github']" 
+                  contextType="ticket_form" 
+                  contextData=(stringify (object teamId=selectedTeamId formType="activity_notes"))}}
+            </div>
+          </div>
+        </div>
         <div class="flex gap-2">
           <input type="number" name="hours" min="0" placeholder="Hours" class="input input-bordered w-24" />
           <input type="number" name="minutes" min="0" max="59" placeholder="Minutes" class="input input-bordered w-24" />
