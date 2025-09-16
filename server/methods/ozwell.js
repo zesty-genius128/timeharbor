@@ -94,24 +94,28 @@ export const ozwellMethods = {
   },
 
   /**
-   * Save or update a conversation for project-scoped AI context
-   * @param {Object} conversationData - Contains projectId, messages, and metadata
+   * Save or update a conversation for field-specific AI context
+   * @param {Object} conversationData - Contains projectId, contextType, fieldType, messages, and metadata
    */
   async saveOzwellConversation(conversationData) {
     check(conversationData, {
       projectId: String,
+      contextType: String, // e.g., 'ticket_form', 'note_edit', etc.
+      fieldType: String, // e.g., 'activity_title', 'activity_notes', etc.
       messages: [Object], // Array of messages following MCP MessageSchema
       workspaceId: Match.Optional(String),
       sessionId: Match.Optional(String),
       lastActivity: Date,
-      context: Match.Optional(Object)
+      context: Match.Optional(Object),
+      relatedEntityId: Match.Optional(String), // e.g., specific ticket ID if editing existing ticket
+      relatedEntityType: Match.Optional(String) // e.g., 'ticket', 'note', etc.
     });
 
     if (!this.userId) {
-      throw new Meteor.Error('not-authorized', 'Must be logged in to save conversations');
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
 
-    // Verify user has access to the project/team
+    // Verify user has access to the project
     const team = await Teams.findOneAsync({
       _id: conversationData.projectId,
       members: this.userId
@@ -121,10 +125,13 @@ export const ozwellMethods = {
       throw new Meteor.Error('not-authorized', 'User does not have access to this project');
     }
 
-    // Update or insert conversation
+    // Find existing conversation for this specific field context
     const existingConversation = await OzwellConversations.findOneAsync({
       projectId: conversationData.projectId,
-      userId: this.userId
+      contextType: conversationData.contextType,
+      fieldType: conversationData.fieldType,
+      userId: this.userId,
+      relatedEntityId: conversationData.relatedEntityId || { $exists: false }
     });
 
     const conversationDoc = {
@@ -145,17 +152,23 @@ export const ozwellMethods = {
   },
 
   /**
-   * Get conversation history for a project
+   * Get conversation history for a specific field context
    * @param {String} projectId - The project/team ID
+   * @param {String} contextType - The context type (e.g., 'ticket_form')
+   * @param {String} fieldType - The field type (e.g., 'activity_title')
+   * @param {String} relatedEntityId - Optional: specific entity ID for existing items
    */
-  async getOzwellConversation(projectId) {
+  async getOzwellConversation(projectId, contextType, fieldType, relatedEntityId = null) {
     check(projectId, String);
+    check(contextType, String);
+    check(fieldType, String);
+    check(relatedEntityId, Match.Optional(String));
 
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
 
-    // Verify user has access to the project/team
+    // Verify user has access to the project
     const team = await Teams.findOneAsync({
       _id: projectId,
       members: this.userId
@@ -165,10 +178,118 @@ export const ozwellMethods = {
       throw new Meteor.Error('not-authorized', 'User does not have access to this project');
     }
 
-    return await OzwellConversations.findOneAsync({
+    const query = {
+      projectId: projectId,
+      contextType: contextType,
+      fieldType: fieldType,
+      userId: this.userId
+    };
+
+    // Add relatedEntityId to query if provided
+    if (relatedEntityId) {
+      query.relatedEntityId = relatedEntityId;
+    } else {
+      query.relatedEntityId = { $exists: false };
+    }
+
+    return await OzwellConversations.findOneAsync(query);
+  },
+
+  /**
+   * Get all conversations for a project (for migration/debugging)
+   * @param {String} projectId - The project/team ID
+   */
+  async getAllOzwellConversations(projectId) {
+    check(projectId, String);
+
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+
+    // Verify user has access to the project
+    const team = await Teams.findOneAsync({
+      _id: projectId,
+      members: this.userId
+    });
+
+    if (!team) {
+      throw new Meteor.Error('not-authorized', 'User does not have access to this project');
+    }
+
+    return await OzwellConversations.find({
       projectId: projectId,
       userId: this.userId
+    }).fetchAsync();
+  },
+
+  /**
+   * Migrate old conversation format to new field-specific format
+   * This helps transition existing conversations to the new schema
+   */
+  async migrateOzwellConversations() {
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+
+    // Find old conversations without contextType/fieldType
+    const oldConversations = await OzwellConversations.find({
+      userId: this.userId,
+      contextType: { $exists: false }
+    }).fetchAsync();
+
+    let migratedCount = 0;
+
+    for (const conv of oldConversations) {
+      // Update old conversations to have default context
+      await OzwellConversations.updateAsync(conv._id, {
+        $set: {
+          contextType: 'general',
+          fieldType: 'general',
+          updatedAt: new Date()
+        }
+      });
+      migratedCount++;
+    }
+
+    return {
+      message: `Migrated ${migratedCount} conversations to new format`,
+      migratedCount
+    };
+  },
+
+  /**
+   * Search conversations by field type for context building
+   * @param {String} projectId - The project/team ID
+   * @param {String} fieldType - The field type to search for
+   * @param {Number} limit - Maximum results to return
+   */
+  async searchConversationsByField(projectId, fieldType, limit = 5) {
+    check(projectId, String);
+    check(fieldType, String);
+    check(limit, Number);
+
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+
+    // Verify user has access to the project
+    const team = await Teams.findOneAsync({
+      _id: projectId,
+      members: this.userId
     });
+
+    if (!team) {
+      throw new Meteor.Error('not-authorized', 'User does not have access to this project');
+    }
+
+    return await OzwellConversations.find({
+      projectId: projectId,
+      fieldType: fieldType,
+      userId: this.userId
+    }, {
+      sort: { updatedAt: -1 },
+      limit: limit
+    }).fetchAsync();
   },
 
   /**

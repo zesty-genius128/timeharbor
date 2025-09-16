@@ -139,28 +139,42 @@ const OzwellHelper = {
     const context = ozwellState.currentContext.get();
     const inputTarget = ozwellState.currentInputTarget.get();
     
-    if (!context || !inputTarget) return;
+    console.log('🔍 sendMockContext called with:', { context, inputTarget });
+    
+    if (!context || !inputTarget) {
+      console.warn('❌ Missing context or inputTarget:', { context, inputTarget });
+      return;
+    }
 
     const iframe = document.getElementById('ozwellIframe') || document.getElementById('ozwellIframeSidecar');
-    if (!iframe) return;
+    if (!iframe) {
+      console.warn('❌ No iframe found');
+      return;
+    }
 
     // Get current text from the input field
     const inputElement = document.querySelector(inputTarget);
     const currentText = inputElement ? inputElement.value : '';
+    console.log('📝 Current text from input:', currentText);
 
     // Extract field type from context
     let fieldType = 'text';
     if (context.contextData && context.contextData.formType) {
       fieldType = context.contextData.formType;
     }
+    console.log('🏷️ Field type extracted:', fieldType);
 
-    // Send initialization data to mock chat
-    iframe.contentWindow.postMessage({
+    const messageData = {
       type: 'init_session',
       currentText: currentText,
       fieldType: fieldType,
       teamName: context.teamName || 'Current Project'
-    }, window.location.origin);
+    };
+
+    console.log('📤 Sending to iframe:', messageData);
+
+    // Send initialization data to mock chat
+    iframe.contentWindow.postMessage(messageData, window.location.origin);
   },
 
   // Handle text selection from mock chat
@@ -471,15 +485,19 @@ Template.body.events({
     const contextType = button.getAttribute('data-context-type');
     const contextData = button.getAttribute('data-context-data');
     
+    console.log('🔘 Plus button clicked:', { inputTarget, contextType, contextData });
+    
     let parsedContextData = {};
     try {
       if (contextData) {
         parsedContextData = JSON.parse(contextData);
+        console.log('✅ Parsed context data:', parsedContextData);
       }
     } catch (e) {
-      console.warn('Failed to parse context data:', e);
+      console.warn('❌ Failed to parse context data:', e);
     }
 
+    console.log('🚀 Opening Ozwell with:', { inputTarget, contextType, parsedContextData });
     OzwellHelper.open(inputTarget, contextType, parsedContextData);
   }
 });

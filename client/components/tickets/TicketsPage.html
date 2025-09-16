@@ -27,7 +27,7 @@
               {{> ozwellIcon 
                   inputTarget="input[name='title']" 
                   contextType="ticket_form" 
-                  contextData=(stringify (object teamId=selectedTeamId formType="activity_title"))}}
+                  contextData=(ozwellContextData "activity_title")}}
             </div>
           </div>
         </div>
@@ -38,7 +38,7 @@
               {{> ozwellIcon 
                   inputTarget="input[name='github']" 
                   contextType="ticket_form" 
-                  contextData=(stringify (object teamId=selectedTeamId formType="activity_notes"))}}
+                  contextData=(ozwellContextData "activity_notes")}}
             </div>
           </div>
         </div>

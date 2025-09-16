@@ -115,8 +115,12 @@
         });
 
         function initializeChat(data) {
+            console.log('🎯 Mock chat received init_session data:', data);
+            
             originalText = data.currentText || '';
             fieldType = data.fieldType || '';
+            
+            console.log('📋 Context extracted:', { originalText, fieldType, teamName: data.teamName });
             
             // Update context info
             document.getElementById('context-info').textContent = 

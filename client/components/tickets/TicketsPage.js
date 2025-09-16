@@ -178,7 +178,9 @@ Template.tickets.helpers({
     return Template.instance().clockedIn.get();
   },
   selectedTeamId() {
-    return Template.instance().selectedTeamId.get();
+    const teamId = Template.instance().selectedTeamId.get();
+    console.log('🔧 selectedTeamId helper returning:', teamId);
+    return teamId;
   },
   isClockedInForTeam(teamId) {
     return !!ClockEvents.findOne({ userId: Meteor.userId(), teamId, endTime: null });
@@ -201,14 +203,19 @@ Template.tickets.helpers({
   },
   // Helper functions for Ozwell integration
   stringify(obj) {
-    return JSON.stringify(obj);
-  },
-  object(...keyValuePairs) {
-    const result = {};
-    for (let i = 0; i < keyValuePairs.length; i += 2) {
-      result[keyValuePairs[i]] = keyValuePairs[i + 1];
-    }
+    console.log('🔧 stringify helper called with:', obj);
+    const result = JSON.stringify(obj);
+    console.log('🔧 stringify result:', result);
     return result;
+  },
+  ozwellContextData(formType) {
+    const teamId = Template.instance().selectedTeamId.get();
+    const contextData = {
+      teamId: teamId,
+      formType: formType
+    };
+    console.log('🔧 ozwellContextData helper called with formType:', formType, 'result:', contextData);
+    return JSON.stringify(contextData);
   },
   getButtonClasses(ticketId) {
     const isActive = Template.instance().activeTicketId.get() === ticketId;
