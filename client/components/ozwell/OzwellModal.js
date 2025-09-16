@@ -31,8 +31,19 @@ const OZWELL_CONFIG = {
 // Initialize configuration from server
 Meteor.callAsync('getOzwellConfig').then(config => {
   Object.assign(OZWELL_CONFIG, config);
+  console.log('✅ Ozwell config loaded:', config);
+  
+  // Test API connection
+  return Meteor.callAsync('testOzwellConnection');
+}).then(testResult => {
+  console.log('🔗 Ozwell API test result:', testResult);
+  if (testResult.success) {
+    console.log('🎉 Ozwell API is available!');
+  } else {
+    console.log('⚠️ Ozwell API not available, using mock mode');
+  }
 }).catch(error => {
-  console.error('Failed to get Ozwell configuration:', error);
+  console.error('Failed to get Ozwell configuration or test connection:', error);
 });
 
 /**
@@ -129,6 +140,33 @@ const OzwellHelper = {
         case 'cancelled':
           // User cancelled the chat
           OzwellHelper.close();
+          break;
+          
+        case 'ozwell_api_call':
+          // Handle API call request from iframe
+          console.log('📤 Received API call request from iframe:', event.data);
+          
+          // Call the server method to send to Ozwell API
+          Meteor.call('sendMessageToOzwell', event.data.message, event.data.context, (error, result) => {
+            if (error) {
+              console.error('❌ Error calling Ozwell API:', error);
+              // Send error response back to iframe
+              event.source.postMessage({
+                type: 'ozwell_api_response',
+                result: {
+                  success: false,
+                  error: error.reason || 'Unknown error'
+                }
+              }, window.location.origin);
+            } else {
+              console.log('✅ Ozwell API response:', result);
+              // Send successful response back to iframe
+              event.source.postMessage({
+                type: 'ozwell_api_response',
+                result: result
+              }, window.location.origin);
+            }
+          });
           break;
       }
     });
@@ -360,6 +398,22 @@ const OzwellHelper = {
 
   // Open Ozwell with context
   async open(inputTarget, contextType, contextData) {
+    // Check if user has Ozwell enabled
+    const user = Meteor.user();
+    if (!user?.profile?.ozwellApiKey) {
+      // Show alert and redirect to settings
+      if (confirm('Ozwell AI is not enabled. Would you like to go to Settings to enable it?')) {
+        // Trigger navigation to settings (this will work with the existing nav system)
+        const settingsLink = document.querySelector('a[href="/settings"]');
+        if (settingsLink) {
+          settingsLink.click();
+        } else {
+          alert('Please go to Settings to enable Ozwell AI integration.');
+        }
+      }
+      return;
+    }
+    
     const context = {
       inputTarget,
       contextType,

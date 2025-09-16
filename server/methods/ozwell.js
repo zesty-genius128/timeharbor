@@ -22,6 +22,322 @@ const OZWELL_CONFIG = {
 
 export const ozwellMethods = {
   /**
+   * Test Ozwell API connection
+   */
+  async testOzwellConnection() {
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+
+    try {
+      console.log('Testing Ozwell API connection...');
+      console.log('API Key available:', !!OZWELL_CONFIG.apiKey);
+      console.log('Base URL:', OZWELL_CONFIG.baseUrl);
+
+      const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/test-credentials`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OZWELL_CONFIG.apiKey}`
+        }
+      });
+
+      console.log('API Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('API Response data:', data);
+        return {
+          success: true,
+          status: response.status,
+          data: data
+        };
+      } else {
+        const errorText = await response.text();
+        console.log('API Error:', response.status, errorText);
+        return {
+          success: false,
+          status: response.status,
+          error: errorText
+        };
+      }
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+
+  /**
+   * Enable Ozwell for a user by storing their API key
+   */
+  async enableOzwellForUser(apiKey) {
+    check(apiKey, String);
+    
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+    
+    if (!apiKey || apiKey.length < 10) {
+      throw new Meteor.Error('invalid-api-key', 'Please provide a valid Ozwell API key');
+    }
+    
+    try {
+      // Test the API key by making a test call
+      const testResponse = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/test-credentials`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+      
+      if (!testResponse.ok) {
+        throw new Meteor.Error('invalid-api-key', 'API key is invalid or expired');
+      }
+      
+      // Store the API key in user's profile
+      await Meteor.users.updateAsync(this.userId, {
+        $set: {
+          'profile.ozwellApiKey': apiKey,
+          'profile.ozwellEnabled': true,
+          'profile.ozwellLastConnected': new Date()
+        }
+      });
+      
+      console.log(`Ozwell enabled for user ${this.userId}`);
+      return { success: true };
+      
+    } catch (error) {
+      if (error.name === 'Error' && error.message.includes('fetch')) {
+        throw new Meteor.Error('connection-error', 'Unable to connect to Ozwell API. Please check your internet connection.');
+      }
+      throw error;
+    }
+  },
+  
+  /**
+   * Disable Ozwell for a user
+   */
+  async disableOzwellForUser() {
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+    
+    await Meteor.users.updateAsync(this.userId, {
+      $unset: {
+        'profile.ozwellApiKey': '',
+        'profile.ozwellEnabled': '',
+        'profile.ozwellLastConnected': ''
+      }
+    });
+    
+    console.log(`Ozwell disabled for user ${this.userId}`);
+    return { success: true };
+  },
+  
+  /**
+   * Test user's Ozwell connection
+   */
+  async testUserOzwellConnection() {
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+    
+    const user = await Meteor.users.findOneAsync(this.userId);
+    const apiKey = user?.profile?.ozwellApiKey;
+    
+    if (!apiKey) {
+      throw new Meteor.Error('no-api-key', 'Ozwell is not enabled. Please add your API key in settings.');
+    }
+    
+    try {
+      const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/test-credentials`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+      
+      if (response.ok) {
+        // Update last connected time
+        await Meteor.users.updateAsync(this.userId, {
+          $set: {
+            'profile.ozwellLastConnected': new Date()
+          }
+        });
+        
+        const data = await response.json();
+        return {
+          success: true,
+          status: response.status,
+          data: data
+        };
+      } else {
+        const errorText = await response.text();
+        return {
+          success: false,
+          status: response.status,
+          error: errorText
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+
+  /**
+   * Send a message to Ozwell AI and get response
+   */
+  async sendMessageToOzwell(message, context) {
+    check(message, String);
+    check(context, {
+      fieldType: String,
+      originalText: Match.Optional(String),
+      teamId: Match.Optional(String),
+      projectContext: Match.Optional(Object)
+    });
+
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+    
+    // Get user's API key
+    const user = await Meteor.users.findOneAsync(this.userId);
+    const apiKey = user?.profile?.ozwellApiKey;
+    
+    if (!apiKey) {
+      throw new Meteor.Error('ozwell-not-enabled', 'Ozwell is not enabled. Please add your API key in Settings.');
+    }
+
+    try {
+      // Build context for Ozwell
+      const ozwellContext = {
+        fieldType: context.fieldType,
+        originalText: context.originalText || '',
+        projectType: 'time_tracking',
+        domain: 'productivity',
+        userIntent: message,
+        examples: {
+          activity_title: ['Fix Login Bug', 'Team Meeting - Sprint Planning', 'Research Database Optimization'],
+          activity_notes: ['Completed initial research and documented findings', 'Made progress on feature with testing', 'Reviewed requirements and updated priorities']
+        }
+      };
+
+      // Call Ozwell API
+      const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/chat/completion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          message: message,
+          context: ozwellContext,
+          maxSuggestions: 3,
+          format: 'suggestions'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Real Ozwell API response:', data);
+        return {
+          success: true,
+          suggestions: data.suggestions || [],
+          response: data.response || 'Here are some suggestions based on your request.'
+        };
+      } else {
+        console.log(`API error ${response.status}, falling back to mock`);
+        // Fall back to mock if API fails
+        return this.generateMockResponse(message, context);
+      }
+    } catch (error) {
+      console.log(`Connection error, falling back to mock:`, error.message);
+      // Fall back to mock if connection fails
+      return this.generateMockResponse(message, context);
+    }
+  },
+  
+  /**
+   * Generate mock response (fallback)
+   */
+  generateMockResponse(message, context) {
+    const msg = message.toLowerCase();
+    const fieldType = context.fieldType;
+    
+    // Intelligent mock responses based on message analysis
+    if (msg.includes('testing') || msg.includes('test')) {
+      if (fieldType === 'activity_title') {
+        return {
+          success: true,
+          suggestions: ['Mock UI Testing', 'Testing Application Features', 'Quality Assurance Testing'],
+          response: 'Great! Here are some testing-focused titles:'
+        };
+      } else {
+        return {
+          success: true,
+          suggestions: ['Creating and testing UI mockups', 'Validating user interface components', 'Mock data testing for UI elements'],
+          response: 'Here are some testing-related descriptions:'
+        };
+      }
+    }
+    
+    if (msg.includes('ticket') || msg.includes('open')) {
+      if (fieldType === 'activity_title') {
+        return {
+          success: true,
+          suggestions: ['Create UI Testing Ticket', 'New Mock Testing Task', 'Testing Work Item'],
+          response: 'Here are some ticket-oriented titles:'
+        };
+      } else {
+        return {
+          success: true,
+          suggestions: ['Creating ticket for UI testing work', 'Opening task for mock testing', 'Tracking testing progress'],
+          response: 'Here are descriptions for ticket creation:'
+        };
+      }
+    }
+    
+    if (msg.includes('shorten') || msg.includes('shorter')) {
+      if (fieldType === 'activity_title') {
+        return {
+          success: true,
+          suggestions: ['UI Testing', 'Mock Testing', 'QA Work'],
+          response: 'Here are shorter, more concise titles:'
+        };
+      } else {
+        return {
+          success: true,
+          suggestions: ['Testing UI components', 'Mock UI validation', 'Interface testing'],
+          response: 'Here are shorter descriptions:'
+        };
+      }
+    }
+    
+    // Default response
+    if (fieldType === 'activity_title') {
+      return {
+        success: true,
+        suggestions: ['Working on New Feature', 'Development Task', 'Project Work'],
+        response: 'Here are some general title suggestions:'
+      };
+    } else {
+      return {
+        success: true,
+        suggestions: ['Working on project development', 'Making progress on new features', 'Continuing development work'],
+        response: 'Here are some general descriptions:'
+      };
+    }
+  },
+
+  /**
    * Get Ozwell configuration (client-safe)
    */
   async getOzwellConfig() {
@@ -71,7 +387,7 @@ export const ozwellMethods = {
   },
 
   /**
-   * Create Ozwell user session (mock implementation)
+   * Create Ozwell user session using user's API key
    */
   async createOzwellUserSession(workspaceId, userId, forceNew = false) {
     check(workspaceId, String);
@@ -81,8 +397,49 @@ export const ozwellMethods = {
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
+    
+    // Get user's API key
+    const user = await Meteor.users.findOneAsync(this.userId);
+    const apiKey = user?.profile?.ozwellApiKey;
+    
+    if (!apiKey) {
+      throw new Meteor.Error('ozwell-not-enabled', 'Ozwell is not enabled. Please add your API key in Settings.');
+    }
 
-    // Mock implementation - return a demo URL that won't cause CORS issues
+    try {
+      // Try to create real session with user's API key
+      const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/workspaces/${workspaceId}/create-user-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          userId: userId,
+          forceNew: forceNew
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Real Ozwell session created for user ${userId} in workspace ${workspaceId}`);
+        return data;
+      } else {
+        console.log(`API error ${response.status}, falling back to mock`);
+        // Fall back to mock if API fails
+        return this.createMockOzwellSession(workspaceId, userId);
+      }
+    } catch (error) {
+      console.log(`Connection error, falling back to mock:`, error.message);
+      // Fall back to mock if connection fails
+      return this.createMockOzwellSession(workspaceId, userId);
+    }
+  },
+  
+  /**
+   * Create mock Ozwell session (fallback)
+   */
+  createMockOzwellSession(workspaceId, userId) {
     const mockSession = {
       loginUrl: 'https://demo.bluehive.com/ozwell-demo',
       loginToken: `token_${Date.now()}`,
@@ -94,28 +451,24 @@ export const ozwellMethods = {
   },
 
   /**
-   * Save or update a conversation for field-specific AI context
-   * @param {Object} conversationData - Contains projectId, contextType, fieldType, messages, and metadata
+   * Save or update a conversation for project-scoped AI context
+   * @param {Object} conversationData - Contains projectId, messages, and metadata
    */
   async saveOzwellConversation(conversationData) {
     check(conversationData, {
       projectId: String,
-      contextType: String, // e.g., 'ticket_form', 'note_edit', etc.
-      fieldType: String, // e.g., 'activity_title', 'activity_notes', etc.
       messages: [Object], // Array of messages following MCP MessageSchema
       workspaceId: Match.Optional(String),
       sessionId: Match.Optional(String),
       lastActivity: Date,
-      context: Match.Optional(Object),
-      relatedEntityId: Match.Optional(String), // e.g., specific ticket ID if editing existing ticket
-      relatedEntityType: Match.Optional(String) // e.g., 'ticket', 'note', etc.
+      context: Match.Optional(Object)
     });
 
     if (!this.userId) {
-      throw new Meteor.Error('not-authorized', 'Must be logged in');
+      throw new Meteor.Error('not-authorized', 'Must be logged in to save conversations');
     }
 
-    // Verify user has access to the project
+    // Verify user has access to the project/team
     const team = await Teams.findOneAsync({
       _id: conversationData.projectId,
       members: this.userId
@@ -125,13 +478,10 @@ export const ozwellMethods = {
       throw new Meteor.Error('not-authorized', 'User does not have access to this project');
     }
 
-    // Find existing conversation for this specific field context
+    // Update or insert conversation
     const existingConversation = await OzwellConversations.findOneAsync({
       projectId: conversationData.projectId,
-      contextType: conversationData.contextType,
-      fieldType: conversationData.fieldType,
-      userId: this.userId,
-      relatedEntityId: conversationData.relatedEntityId || { $exists: false }
+      userId: this.userId
     });
 
     const conversationDoc = {
@@ -152,23 +502,17 @@ export const ozwellMethods = {
   },
 
   /**
-   * Get conversation history for a specific field context
+   * Get conversation history for a project
    * @param {String} projectId - The project/team ID
-   * @param {String} contextType - The context type (e.g., 'ticket_form')
-   * @param {String} fieldType - The field type (e.g., 'activity_title')
-   * @param {String} relatedEntityId - Optional: specific entity ID for existing items
    */
-  async getOzwellConversation(projectId, contextType, fieldType, relatedEntityId = null) {
+  async getOzwellConversation(projectId) {
     check(projectId, String);
-    check(contextType, String);
-    check(fieldType, String);
-    check(relatedEntityId, Match.Optional(String));
 
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
 
-    // Verify user has access to the project
+    // Verify user has access to the project/team
     const team = await Teams.findOneAsync({
       _id: projectId,
       members: this.userId
@@ -178,118 +522,10 @@ export const ozwellMethods = {
       throw new Meteor.Error('not-authorized', 'User does not have access to this project');
     }
 
-    const query = {
+    return await OzwellConversations.findOneAsync({
       projectId: projectId,
-      contextType: contextType,
-      fieldType: fieldType,
       userId: this.userId
-    };
-
-    // Add relatedEntityId to query if provided
-    if (relatedEntityId) {
-      query.relatedEntityId = relatedEntityId;
-    } else {
-      query.relatedEntityId = { $exists: false };
-    }
-
-    return await OzwellConversations.findOneAsync(query);
-  },
-
-  /**
-   * Get all conversations for a project (for migration/debugging)
-   * @param {String} projectId - The project/team ID
-   */
-  async getAllOzwellConversations(projectId) {
-    check(projectId, String);
-
-    if (!this.userId) {
-      throw new Meteor.Error('not-authorized', 'Must be logged in');
-    }
-
-    // Verify user has access to the project
-    const team = await Teams.findOneAsync({
-      _id: projectId,
-      members: this.userId
     });
-
-    if (!team) {
-      throw new Meteor.Error('not-authorized', 'User does not have access to this project');
-    }
-
-    return await OzwellConversations.find({
-      projectId: projectId,
-      userId: this.userId
-    }).fetchAsync();
-  },
-
-  /**
-   * Migrate old conversation format to new field-specific format
-   * This helps transition existing conversations to the new schema
-   */
-  async migrateOzwellConversations() {
-    if (!this.userId) {
-      throw new Meteor.Error('not-authorized', 'Must be logged in');
-    }
-
-    // Find old conversations without contextType/fieldType
-    const oldConversations = await OzwellConversations.find({
-      userId: this.userId,
-      contextType: { $exists: false }
-    }).fetchAsync();
-
-    let migratedCount = 0;
-
-    for (const conv of oldConversations) {
-      // Update old conversations to have default context
-      await OzwellConversations.updateAsync(conv._id, {
-        $set: {
-          contextType: 'general',
-          fieldType: 'general',
-          updatedAt: new Date()
-        }
-      });
-      migratedCount++;
-    }
-
-    return {
-      message: `Migrated ${migratedCount} conversations to new format`,
-      migratedCount
-    };
-  },
-
-  /**
-   * Search conversations by field type for context building
-   * @param {String} projectId - The project/team ID
-   * @param {String} fieldType - The field type to search for
-   * @param {Number} limit - Maximum results to return
-   */
-  async searchConversationsByField(projectId, fieldType, limit = 5) {
-    check(projectId, String);
-    check(fieldType, String);
-    check(limit, Number);
-
-    if (!this.userId) {
-      throw new Meteor.Error('not-authorized', 'Must be logged in');
-    }
-
-    // Verify user has access to the project
-    const team = await Teams.findOneAsync({
-      _id: projectId,
-      members: this.userId
-    });
-
-    if (!team) {
-      throw new Meteor.Error('not-authorized', 'User does not have access to this project');
-    }
-
-    return await OzwellConversations.find({
-      projectId: projectId,
-      fieldType: fieldType,
-      userId: this.userId
-    }, {
-      sort: { updatedAt: -1 },
-      limit: limit
-    }).fetchAsync();
   },
 
   /**
