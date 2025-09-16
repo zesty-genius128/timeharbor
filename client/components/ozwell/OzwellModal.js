@@ -43,30 +43,24 @@ const OzwellHelper = {
   async createSession(context) {
     try {
       ozwellState.loadingSession.set(true);
-      ozwellState.status.set('Setting up Ozwell session...');
+      ozwellState.status.set('Loading AI assistant...');
 
-      // Get project information
-      const projectId = context.projectId || context.teamId || 'default';
-      const projectName = context.projectName || context.teamName || 'Default Project';
+      // For mock testing, use local mock chat interface
+      const mockChatUrl = `${window.location.origin}/mock-ozwell-chat.html`;
+      
+      // Store context for later use
+      ozwellState.currentContext.set(context);
+      
+      // Set the mock URL
+      ozwellState.sessionUrl.set(mockChatUrl);
+      ozwellState.status.set('AI assistant ready');
 
-      // Step 1: Create workspace via server
-      ozwellState.status.set('Creating workspace...');
-      const workspaceId = await Meteor.callAsync('createOzwellWorkspace', projectId, projectName);
-      ozwellState.workspaceId.set(workspaceId);
+      // Setup iframe communication for mock
+      setTimeout(() => {
+        this.setupMockIframeComm();
+      }, 500);
 
-      // Step 2: Create user via server
-      ozwellState.status.set('Creating user...');
-      const userId = await Meteor.callAsync('createOzwellUser', workspaceId);
-
-      // Step 3: Create user session via server
-      ozwellState.status.set('Creating session...');
-      const sessionData = await Meteor.callAsync('createOzwellUserSession', workspaceId, userId, false);
-
-      ozwellState.sessionUrl.set(sessionData.loginUrl);
-      ozwellState.sessionId.set(sessionData.userId);
-      ozwellState.status.set('Session ready');
-
-      return sessionData.loginUrl;
+      return mockChatUrl;
 
     } catch (error) {
       console.error('Failed to create Ozwell session:', error);
@@ -111,6 +105,84 @@ const OzwellHelper = {
           break;
       }
     });
+  },
+
+  // Setup postMessage communication with mock iframe
+  setupMockIframeComm() {
+    window.addEventListener('message', (event) => {
+      // Accept messages from our own domain for mock testing
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      switch (event.data.type) {
+        case 'chat_ready':
+          // Mock chat is ready, send initial context
+          this.sendMockContext();
+          break;
+          
+        case 'text_selected':
+          // User selected text from AI suggestions
+          this.handleMockTextSelected(event.data);
+          break;
+          
+        case 'cancelled':
+          // User cancelled the chat
+          OzwellHelper.close();
+          break;
+      }
+    });
+  },
+
+  // Send context to mock iframe
+  sendMockContext() {
+    const context = ozwellState.currentContext.get();
+    const inputTarget = ozwellState.currentInputTarget.get();
+    
+    if (!context || !inputTarget) return;
+
+    const iframe = document.getElementById('ozwellIframe') || document.getElementById('ozwellIframeSidecar');
+    if (!iframe) return;
+
+    // Get current text from the input field
+    const inputElement = document.querySelector(inputTarget);
+    const currentText = inputElement ? inputElement.value : '';
+
+    // Extract field type from context
+    let fieldType = 'text';
+    if (context.contextData && context.contextData.formType) {
+      fieldType = context.contextData.formType;
+    }
+
+    // Send initialization data to mock chat
+    iframe.contentWindow.postMessage({
+      type: 'init_session',
+      currentText: currentText,
+      fieldType: fieldType,
+      teamName: context.teamName || 'Current Project'
+    }, window.location.origin);
+  },
+
+  // Handle text selection from mock chat
+  handleMockTextSelected(data) {
+    const inputTarget = ozwellState.currentInputTarget.get();
+    if (!inputTarget) return;
+
+    // Find the input element and update its value
+    const inputElement = document.querySelector(inputTarget);
+    if (inputElement) {
+      inputElement.value = data.selectedText;
+      
+      // Trigger input event so any listeners get notified
+      inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+      inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Focus the input to show the change
+      inputElement.focus();
+    }
+
+    // Close the modal
+    OzwellHelper.close();
   },
 
   // Send initial context to Ozwell iframe
