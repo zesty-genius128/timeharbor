@@ -56,15 +56,37 @@ const OzwellHelper = {
       ozwellState.loadingSession.set(true);
       ozwellState.status.set('Loading AI assistant...');
 
-      // For mock testing, use local mock chat interface
-      const mockChatUrl = `${window.location.origin}/mock-ozwell-chat.html`;
-      
       // Store context for later use
       ozwellState.currentContext.set(context);
-      
-      // Set the mock URL
+
+      // Check if user has Ozwell enabled and API key
+      const user = Meteor.user();
+      if (!user?.profile?.ozwellEnabled || !user?.profile?.ozwellApiKey) {
+        ozwellState.status.set('Ozwell not enabled. Please configure in Settings.');
+        ozwellState.sessionUrl.set(null);
+        return null;
+      }
+
+      // Try to create a real Ozwell session first
+      const realSessionUrl = await this.createRealOzwellSession(context);
+      if (realSessionUrl) {
+        console.log('✅ Real Ozwell session created:', realSessionUrl);
+        ozwellState.sessionUrl.set(realSessionUrl);
+        ozwellState.status.set('AI assistant ready');
+        
+        // Setup communication with real Ozwell iframe
+        setTimeout(() => {
+          this.setupRealOzwellComm();
+        }, 500);
+        
+        return realSessionUrl;
+      }
+
+      // Fallback to mock if real session fails
+      console.log('⚠️ Real Ozwell session failed, using mock');
+      const mockChatUrl = `${window.location.origin}/mock-ozwell-chat.html`;
       ozwellState.sessionUrl.set(mockChatUrl);
-      ozwellState.status.set('AI assistant ready');
+      ozwellState.status.set('AI assistant ready (mock mode)');
 
       // Setup iframe communication for mock
       setTimeout(() => {
@@ -80,6 +102,180 @@ const OzwellHelper = {
     } finally {
       ozwellState.loadingSession.set(false);
     }
+  },
+
+  // Create real Ozwell session
+  async createRealOzwellSession(context) {
+    try {
+      // Get current context for the session
+      const inputTarget = ozwellState.currentInputTarget.get();
+      
+      if (!context || !inputTarget) {
+        console.warn('❌ Missing context for Ozwell session');
+        return null;
+      }
+
+      // Get current text from the input field
+      const inputElement = document.querySelector(inputTarget);
+      const currentText = inputElement ? inputElement.value : '';
+      
+      // Extract field type from context
+      let fieldType = 'text';
+      if (context.contextData && context.contextData.formType) {
+        fieldType = context.contextData.formType;
+      }
+
+      // Create Ozwell session via server method
+      const sessionResult = await new Promise((resolve, reject) => {
+        Meteor.call('createOzwellUserSession', 'timeharbor-workspace', Meteor.userId(), (error, result) => {
+          if (error) {
+            console.error('Ozwell session creation failed:', error);
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        });
+      });
+
+      if (sessionResult && sessionResult.sessionUrl) {
+        // Add context parameters to the session URL for better AI understanding
+        const url = new URL(sessionResult.sessionUrl);
+        url.searchParams.set('context', JSON.stringify({
+          fieldType: fieldType,
+          currentText: currentText,
+          projectType: 'time_tracking',
+          teamName: context.teamName || 'Current Project',
+          userHint: this.generateUserHint(fieldType, currentText)
+        }));
+        
+        return url.toString();
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error creating real Ozwell session:', error);
+      return null;
+    }
+  },
+
+  // Generate helpful hint for the user based on context
+  generateUserHint(fieldType, currentText) {
+    if (fieldType === 'activity_title') {
+      if (currentText.trim()) {
+        return `Help me improve this activity title: "${currentText}"`;
+      } else {
+        return 'Help me write a professional activity title for my time tracking';
+      }
+    } else if (fieldType === 'activity_notes') {
+      if (currentText.trim()) {
+        return `Help me expand these activity notes: "${currentText}"`;
+      } else {
+        return 'Help me write detailed activity notes for my time tracking';
+      }
+    }
+    return 'Help me write professional text for my time tracking application';
+  },
+
+  // Setup communication with real Ozwell iframe
+  setupRealOzwellComm() {
+    window.addEventListener('message', (event) => {
+      // Accept messages from Ozwell domains
+      if (!event.origin.includes('bluehive.com') && !event.origin.includes('ozwell.com')) {
+        return;
+      }
+
+      const { message, channel, data } = event.data;
+
+      // Handle Ozwell iframe messages
+      if (channel === 'iframe-basic') {
+        switch (message) {
+          case 'text_selected':
+          case 'content_selected':
+            // User selected text from Ozwell
+            console.log('📥 Text selected from real Ozwell:', data);
+            this.handleRealOzwellTextSelected(data);
+            break;
+            
+          case 'session_ready':
+            // Ozwell session is ready, send initial context
+            console.log('🚀 Real Ozwell session ready');
+            this.sendRealOzwellContext();
+            break;
+            
+          case 'cancelled':
+          case 'close':
+            // User cancelled the session
+            console.log('❌ Real Ozwell session cancelled');
+            OzwellHelper.close();
+            break;
+        }
+      }
+    });
+  },
+
+  // Send context to real Ozwell session
+  sendRealOzwellContext() {
+    const context = ozwellState.currentContext.get();
+    const inputTarget = ozwellState.currentInputTarget.get();
+    
+    if (!context || !inputTarget) {
+      console.warn('❌ Missing context for real Ozwell session');
+      return;
+    }
+
+    const iframe = document.getElementById('ozwellIframe') || document.getElementById('ozwellIframeSidecar');
+    if (!iframe) {
+      console.warn('❌ No Ozwell iframe found');
+      return;
+    }
+
+    // Get current text from the input field
+    const inputElement = document.querySelector(inputTarget);
+    const currentText = inputElement ? inputElement.value : '';
+
+    // Extract field type from context
+    let fieldType = 'text';
+    if (context.contextData && context.contextData.formType) {
+      fieldType = context.contextData.formType;
+    }
+
+    const contextData = {
+      message: 'set_context',
+      channel: 'iframe-basic',
+      data: {
+        fieldType: fieldType,
+        currentText: currentText,
+        projectType: 'time_tracking',
+        teamName: context.teamName || 'Current Project',
+        userHint: this.generateUserHint(fieldType, currentText)
+      }
+    };
+
+    console.log('📤 Sending context to real Ozwell:', contextData);
+    iframe.contentWindow.postMessage(contextData, '*');
+  },
+
+  // Handle text selection from real Ozwell
+  handleRealOzwellTextSelected(data) {
+    const inputTarget = ozwellState.currentInputTarget.get();
+    if (!inputTarget) return;
+
+    // Find the input element and update its value
+    const inputElement = document.querySelector(inputTarget);
+    if (inputElement) {
+      const selectedText = data.selectedText || data.text || data.content;
+      inputElement.value = selectedText;
+      
+      // Trigger input event for reactive updates
+      inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+      
+      console.log('✅ Text selected from real Ozwell and applied:', selectedText);
+    }
+
+    // Close the modal after a short delay to let user see the change
+    setTimeout(() => {
+      OzwellHelper.close();
+    }, 500);
   },
 
   // Setup postMessage communication with iframe
