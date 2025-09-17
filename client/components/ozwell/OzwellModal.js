@@ -125,11 +125,11 @@ const OzwellHelper = {
         fieldType = context.contextData.formType;
       }
 
-      // Create Ozwell session via server method
+      // Create project-specific Ozwell session via server method
       const sessionResult = await new Promise((resolve, reject) => {
-        Meteor.call('createOzwellUserSession', 'timeharbor-workspace', Meteor.userId(), (error, result) => {
+        Meteor.call('createProjectSession', 'timeharbor-project', (error, result) => {
           if (error) {
-            console.error('Ozwell session creation failed:', error);
+            console.error('Project session creation failed:', error);
             reject(error);
           } else {
             resolve(result);
@@ -138,6 +138,12 @@ const OzwellHelper = {
       });
 
       if (sessionResult && sessionResult.sessionUrl) {
+        // Store session ID for future reference
+        if (sessionResult.sessionId) {
+          ozwellState.sessionId.set(sessionResult.sessionId);
+          console.log('📝 Session ID stored:', sessionResult.sessionId);
+        }
+
         // Add context parameters to the session URL for better AI understanding
         const url = new URL(sessionResult.sessionUrl);
         url.searchParams.set('context', JSON.stringify({
