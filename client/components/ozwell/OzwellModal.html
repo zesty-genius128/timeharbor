@@ -1,126 +1,120 @@
 <!-- Ozwell AI Integration Modal -->
 <template name="ozwellModal">
   {{#if isOzwellOpen}}
-    <div class="modal modal-open">
-      <div class="modal-box w-11/12 max-w-5xl h-5/6 max-h-screen p-0 relative">
-        <!-- Modal Header -->
-        <div class="sticky top-0 bg-base-100 border-b border-base-300 p-4 z-10">
-          <div class="flex justify-between items-center">
-            <h3 class="font-bold text-lg">Ozwell AI Writing Assistant</h3>
-            <div class="flex gap-2">
-              <!-- Toggle View Mode Button -->
-              <button id="ozwellToggleView" class="btn btn-sm btn-outline" title="Toggle between modal and sidecar view">
-                {{#if ozwellViewMode "modal"}}
-                  Side Window
-                {{else}}
-                  Float Window
-                {{/if}}
-              </button>
-              <!-- Close Button -->
-              <button id="ozwellClose" class="btn btn-sm btn-circle btn-ghost">✕</button>
-            </div>
+  <div class="modal modal-open">
+    <div class="modal-box w-11/12 max-w-5xl h-5/6 max-h-screen p-0 relative">
+      <!-- Modal Header -->
+      <div class="sticky top-0 bg-base-100 border-b border-base-300 p-4 z-10">
+        <div class="flex justify-between items-center">
+          <h3 class="font-bold text-lg">Ozwell AI Writing Assistant</h3>
+          <div class="flex gap-2">
+            <!-- Toggle View Mode Button -->
+            <button id="ozwellToggleView" class="btn btn-sm btn-outline" title="Toggle between modal and sidecar view">
+              {{#if ozwellViewMode "modal"}}
+              Side Window
+              {{else}}
+              Float Window
+              {{/if}}
+            </button>
+            <!-- Close Button -->
+            <button id="ozwellClose" class="btn btn-sm btn-circle btn-ghost">X</button>
           </div>
-          {{#if ozwellStatus}}
-            <div class="text-sm text-base-content/70 mt-2">
-              {{ozwellStatus}}
-            </div>
-          {{/if}}
         </div>
+        {{#if ozwellStatus}}
+        <div class="text-sm text-base-content/70 mt-2">
+          {{ozwellStatus}}
+        </div>
+        {{/if}}
+      </div>
 
-        <!-- Ozwell iframe Container -->
-        <div class="h-full overflow-hidden">
-          {{#if ozwellLoadingSession}}
-            <div class="flex items-center justify-center h-full">
-              <div class="text-center">
-                <div class="loading loading-spinner loading-lg mb-4"></div>
-                <p>Setting up AI session...</p>
-              </div>
-            </div>
-          {{else}}
-            {{#if ozwellSessionUrl}}
-              <iframe 
-                id="ozwellIframe"
-                src="{{ozwellSessionUrl}}"
-                class="w-full h-full border-0"
-                title="Ozwell AI Writing Assistant">
-              </iframe>
-            {{else}}
-              <div class="flex items-center justify-center h-full">
-                <div class="text-center">
-                  <p class="text-error">Failed to load AI assistant</p>
-                  <button id="ozwellRetry" class="btn btn-primary mt-4">Retry</button>
-                </div>
-              </div>
-            {{/if}}
-          {{/if}}
+      <!-- Ozwell iframe Container -->
+      <div class="h-full overflow-hidden">
+        {{#if ozwellLoadingSession}}
+        <div class="flex items-center justify-center h-full">
+          <div class="text-center">
+            <div class="loading loading-spinner loading-lg mb-4"></div>
+            <p>Setting up AI session...</p>
+          </div>
         </div>
+        {{else}}
+        {{#if ozwellSessionUrl}}
+        <iframe id="ozwellIframe" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
+          title="Ozwell AI Writing Assistant">
+        </iframe>
+        {{else}}
+        <div class="flex items-center justify-center h-full">
+          <div class="text-center">
+            <p class="text-error">Failed to load AI assistant</p>
+            <button id="ozwellRetry" class="btn btn-primary mt-4">Retry</button>
+          </div>
+        </div>
+        {{/if}}
+        {{/if}}
       </div>
     </div>
+  </div>
   {{/if}}
 </template>
 
 <!-- Ozwell Sidecar -->
 <template name="ozwellSidecar">
   {{#if isOzwellSidecarOpen}}
-    <div class="fixed right-0 top-0 h-full w-96 bg-base-100 shadow-2xl z-50 border-l border-base-300 transform transition-transform duration-300">
-      <!-- Sidecar Header -->
-      <div class="sticky top-0 bg-base-100 border-b border-base-300 p-4 z-10">
-        <div class="flex justify-between items-center">
-          <h3 class="font-bold text-lg">Ozwell AI</h3>
-          <div class="flex gap-2">
-            <!-- Toggle View Mode Button -->
-            <button id="ozwellToggleViewSidecar" class="btn btn-sm btn-outline" title="Switch to modal view">
-              Float Window
-            </button>
-            <!-- Close Button -->
-            <button id="ozwellCloseSidecar" class="btn btn-sm btn-circle btn-ghost">✕</button>
-          </div>
+  <div
+    class="fixed right-0 top-0 h-full w-96 bg-base-100 shadow-2xl z-50 border-l border-base-300 transform transition-transform duration-300">
+    <!-- Sidecar Header -->
+    <div class="sticky top-0 bg-base-100 border-b border-base-300 p-4 z-10">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-lg">Ozwell AI</h3>
+        <div class="flex gap-2">
+          <!-- Toggle View Mode Button -->
+          <button id="ozwellToggleViewSidecar" class="btn btn-sm btn-outline" title="Switch to modal view">
+            Float Window
+          </button>
+          <!-- Close Button -->
+          <button id="ozwellCloseSidecar" class="btn btn-sm btn-circle btn-ghost">X</button>
         </div>
-        {{#if ozwellStatus}}
-          <div class="text-sm text-base-content/70 mt-2">
-            {{ozwellStatus}}
-          </div>
-        {{/if}}
       </div>
-
-      <!-- Ozwell iframe Container -->
-      <div class="h-full overflow-hidden pb-16">
-        {{#if ozwellLoadingSession}}
-          <div class="flex items-center justify-center h-full">
-            <div class="text-center">
-              <div class="loading loading-spinner loading-lg mb-4"></div>
-              <p class="text-sm">Setting up AI session...</p>
-            </div>
-          </div>
-        {{else}}
-          {{#if ozwellSessionUrl}}
-            <iframe 
-              id="ozwellIframeSidecar"
-              src="{{ozwellSessionUrl}}"
-              class="w-full h-full border-0"
-              title="Ozwell AI Writing Assistant">
-            </iframe>
-          {{else}}
-            <div class="flex items-center justify-center h-full">
-              <div class="text-center">
-                <p class="text-error text-sm">Failed to load AI assistant</p>
-                <button id="ozwellRetrySidecar" class="btn btn-primary btn-sm mt-4">Retry</button>
-              </div>
-            </div>
-          {{/if}}
-        {{/if}}
+      {{#if ozwellStatus}}
+      <div class="text-sm text-base-content/70 mt-2">
+        {{ozwellStatus}}
       </div>
+      {{/if}}
     </div>
+
+    <!-- Ozwell iframe Container -->
+    <div class="h-full overflow-hidden pb-16">
+      {{#if ozwellLoadingSession}}
+      <div class="flex items-center justify-center h-full">
+        <div class="text-center">
+          <div class="loading loading-spinner loading-lg mb-4"></div>
+          <p class="text-sm">Setting up AI session...</p>
+        </div>
+      </div>
+      {{else}}
+      {{#if ozwellSessionUrl}}
+      <iframe id="ozwellIframeSidecar" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
+        title="Ozwell AI Writing Assistant">
+      </iframe>
+      {{else}}
+      <div class="flex items-center justify-center h-full">
+        <div class="text-center">
+          <p class="text-error text-sm">Failed to load AI assistant</p>
+          <button id="ozwellRetrySidecar" class="btn btn-primary btn-sm mt-4">Retry</button>
+        </div>
+      </div>
+      {{/if}}
+      {{/if}}
+    </div>
+  </div>
   {{/if}}
 </template>
 
 <!-- Ozwell AI Icon Button -->
 <template name="ozwellIcon">
-  <button class="ozwell-trigger btn btn-ghost btn-xs p-0 h-6 min-h-6 w-6 text-sm hover:bg-primary hover:text-primary-content transition-colors duration-200 border-0 bg-transparent" 
-          title="Get AI writing help with Ozwell"
-          data-input-target="{{inputTarget}}"
-          data-context-type="{{contextType}}"
-          data-context-data="{{contextData}}">
+  <button
+    class="ozwell-trigger btn btn-ghost btn-xs p-0 h-6 min-h-6 w-6 text-sm hover:bg-primary hover:text-primary-content transition-colors duration-200 border-0 bg-transparent"
+    title="Get AI writing help with Ozwell" data-input-target="{{inputTarget}}" data-context-type="{{contextType}}"
+    data-context-data="{{contextData}}">
     +
   </button>
 </template>

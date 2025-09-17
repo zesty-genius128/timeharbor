@@ -31,12 +31,12 @@ const OZWELL_CONFIG = {
 // Initialize configuration from server
 Meteor.callAsync('getOzwellConfig').then(config => {
   Object.assign(OZWELL_CONFIG, config);
-  console.log('✅ Ozwell config loaded:', config);
+  console.log('Ozwell config loaded:', config);
 
   // Test API connection
   return Meteor.callAsync('testOzwellConnection');
 }).then(testResult => {
-  console.log('🔗 Ozwell API test result:', testResult);
+  console.log('Ozwell API test result:', testResult);
   if (testResult.success) {
     console.log('🎉 Ozwell API is available!');
   } else {

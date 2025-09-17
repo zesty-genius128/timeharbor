@@ -88,16 +88,61 @@ export const ozwellMethods = {
     try {
       // Skip test-credentials check since it's failing but completions work
       // TODO: Fix test-credentials endpoint issues later
-      console.log('⚠️ Skipping test-credentials check, proceeding with workspace creation...');
+      console.log('Skipping test-credentials check, proceeding with workspace creation...');
 
-      // Create Ozwell workspace and user for this TimeHarbor user
-      console.log('🔧 Creating Ozwell workspace...');
-      const workspaceData = await this.createOzwellWorkspace(apiKey);
-      console.log('✅ Workspace created:', workspaceData);
+      // Create Ozwell workspace directly (avoiding this.method call issues)
+      console.log('Creating Ozwell workspace...');
+      const user = await Meteor.users.findOneAsync(this.userId);
+      const workspaceName = `TimeHarbor - ${user.username || this.userId}`;
 
-      console.log('🔧 Creating Ozwell user...');
-      const userData = await this.createOzwellUser(apiKey, workspaceData.workspaceId);
-      console.log('✅ User created:', userData);
+      console.log('Attempting to create workspace:', workspaceName);
+      console.log('Using API endpoint:', `${OZWELL_CONFIG.baseUrl}/api/v1/workspaces/create`);
+
+      const workspaceResponse = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/workspaces/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          name: workspaceName,
+          metaData: {
+            externalId: this.userId,
+            platform: 'timeharbor'
+          }
+        })
+      });
+
+      console.log('Workspace creation response status:', workspaceResponse.status);
+
+      if (!workspaceResponse.ok) {
+        const errorText = await workspaceResponse.text();
+        console.error('Failed to create Ozwell workspace:', workspaceResponse.status, errorText);
+        throw new Meteor.Error('workspace-creation-failed', `Failed to create Ozwell workspace: ${workspaceResponse.status} ${errorText}`);
+      }
+
+      const workspaceData = await workspaceResponse.json();
+      console.log('Workspace created:', workspaceData.workspaceId);
+
+      // Create Ozwell user directly
+      console.log('Creating Ozwell user...');
+      const userResponse = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/workspaces/${workspaceData.workspaceId}/create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!userResponse.ok) {
+        const errorText = await userResponse.text();
+        console.error('Failed to create Ozwell user:', userResponse.status, errorText);
+        throw new Meteor.Error('user-creation-failed', `Failed to create Ozwell user: ${userResponse.status} ${errorText}`);
+      }
+
+      const userData = await userResponse.json();
+      console.log('User created:', userData.userId);
 
       // Store the API key and Ozwell IDs in user's profile
       await Meteor.users.updateAsync(this.userId, {
@@ -146,14 +191,21 @@ export const ozwellMethods = {
   },
 
   /**
+   * Test method to verify method registration
+   */
+  async testOzwellMethodExists() {
+    return { success: true, message: 'Method registration is working' };
+  },
+
+  /**
    * Create Ozwell workspace for TimeHarbor user
    */
   async createOzwellWorkspace(apiKey) {
     const user = await Meteor.users.findOneAsync(this.userId);
     const workspaceName = `TimeHarbor - ${user.username || this.userId}`;
 
-    console.log('🔧 Attempting to create workspace:', workspaceName);
-    console.log('🔧 Using API endpoint:', `${OZWELL_CONFIG.baseUrl}/api/v1/workspaces/create`);
+    console.log('Attempting to create workspace:', workspaceName);
+    console.log('Using API endpoint:', `${OZWELL_CONFIG.baseUrl}/api/v1/workspaces/create`);
 
     try {
       const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/workspaces/create`, {
@@ -171,19 +223,19 @@ export const ozwellMethods = {
         })
       });
 
-      console.log('🔧 Workspace creation response status:', response.status);
+      console.log('Workspace creation response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Failed to create Ozwell workspace:', response.status, errorText);
+        console.error('Failed to create Ozwell workspace:', response.status, errorText);
         throw new Meteor.Error('workspace-creation-failed', `Failed to create Ozwell workspace: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Created Ozwell workspace:', data.workspaceId);
+      console.log('Created Ozwell workspace:', data.workspaceId);
       return data;
     } catch (error) {
-      console.error('❌ Workspace creation error:', error);
+      console.error('Workspace creation error:', error);
       throw error;
     }
   },
@@ -208,7 +260,7 @@ export const ozwellMethods = {
     }
 
     const data = await response.json();
-    console.log('✅ Created Ozwell user:', data.userId);
+    console.log('Created Ozwell user:', data.userId);
     return data;
   },
 
@@ -238,7 +290,7 @@ export const ozwellMethods = {
     });
 
     if (existingSession && existingSession.sessionUrl) {
-      console.log('♻️ Reusing existing project session:', sessionId);
+      console.log('Reusing existing project session:', sessionId);
       return {
         success: true,
         sessionUrl: existingSession.sessionUrl,
@@ -269,7 +321,7 @@ export const ozwellMethods = {
 
       if (response.ok) {
         const sessionData = await response.json();
-        console.log('✅ Created new project session:', sessionData.loginUrl);
+        console.log('Created new project session:', sessionData.loginUrl);
 
         // Store session info
         if (existingSession) {
@@ -495,7 +547,7 @@ When a user asks to "simplify" or "shorten", provide a much shorter version of t
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Real Ozwell API response:', data);
+        console.log('Real Ozwell API response:', data);
 
         // Parse Ozwell API response format
         if (data.choices && data.choices.length > 0) {
@@ -612,7 +664,7 @@ When a user asks to "simplify" or "shorten", provide a much shorter version of t
   /**
    * Create Ozwell workspace for a project (mock implementation)
    */
-  async createOzwellWorkspace(projectId, projectName) {
+  async createMockOzwellWorkspace(projectId, projectName) {
     check(projectId, String);
     check(projectName, String);
 
@@ -630,7 +682,7 @@ When a user asks to "simplify" or "shorten", provide a much shorter version of t
   /**
    * Create Ozwell user in workspace (mock implementation)
    */
-  async createOzwellUser(workspaceId) {
+  async createMockOzwellUser(workspaceId) {
     check(workspaceId, String);
 
     if (!this.userId) {
