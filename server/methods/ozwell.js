@@ -34,6 +34,7 @@ export const ozwellMethods = {
       console.log('API Key available:', !!OZWELL_CONFIG.apiKey);
       console.log('Base URL:', OZWELL_CONFIG.baseUrl);
 
+      // Test the API key with the test credentials endpoint
       const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/test-credentials`, {
         method: 'POST',
         headers: {
@@ -43,7 +44,7 @@ export const ozwellMethods = {
       });
 
       console.log('API Response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('API Response data:', data);
@@ -75,17 +76,17 @@ export const ozwellMethods = {
    */
   async enableOzwellForUser(apiKey) {
     check(apiKey, String);
-    
+
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
-    
+
     if (!apiKey || apiKey.length < 10) {
       throw new Meteor.Error('invalid-api-key', 'Please provide a valid Ozwell API key');
     }
-    
+
     try {
-      // Test the API key by making a test call
+      // Test the API key with the test credentials endpoint
       const testResponse = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/test-credentials`, {
         method: 'POST',
         headers: {
@@ -93,11 +94,11 @@ export const ozwellMethods = {
           'Authorization': `Bearer ${apiKey}`
         }
       });
-      
+
       if (!testResponse.ok) {
         throw new Meteor.Error('invalid-api-key', 'API key is invalid or expired');
       }
-      
+
       // Store the API key in user's profile
       await Meteor.users.updateAsync(this.userId, {
         $set: {
@@ -106,10 +107,10 @@ export const ozwellMethods = {
           'profile.ozwellLastConnected': new Date()
         }
       });
-      
+
       console.log(`Ozwell enabled for user ${this.userId}`);
       return { success: true };
-      
+
     } catch (error) {
       if (error.name === 'Error' && error.message.includes('fetch')) {
         throw new Meteor.Error('connection-error', 'Unable to connect to Ozwell API. Please check your internet connection.');
@@ -117,7 +118,7 @@ export const ozwellMethods = {
       throw error;
     }
   },
-  
+
   /**
    * Disable Ozwell for a user
    */
@@ -125,7 +126,7 @@ export const ozwellMethods = {
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
-    
+
     await Meteor.users.updateAsync(this.userId, {
       $unset: {
         'profile.ozwellApiKey': '',
@@ -133,11 +134,11 @@ export const ozwellMethods = {
         'profile.ozwellLastConnected': ''
       }
     });
-    
+
     console.log(`Ozwell disabled for user ${this.userId}`);
     return { success: true };
   },
-  
+
   /**
    * Test user's Ozwell connection
    */
@@ -145,14 +146,14 @@ export const ozwellMethods = {
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
-    
+
     const user = await Meteor.users.findOneAsync(this.userId);
     const apiKey = user?.profile?.ozwellApiKey;
-    
+
     if (!apiKey) {
       throw new Meteor.Error('no-api-key', 'Ozwell is not enabled. Please add your API key in settings.');
     }
-    
+
     try {
       const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/test-credentials`, {
         method: 'POST',
@@ -161,7 +162,7 @@ export const ozwellMethods = {
           'Authorization': `Bearer ${apiKey}`
         }
       });
-      
+
       if (response.ok) {
         // Update last connected time
         await Meteor.users.updateAsync(this.userId, {
@@ -169,7 +170,7 @@ export const ozwellMethods = {
             'profile.ozwellLastConnected': new Date()
           }
         });
-        
+
         const data = await response.json();
         return {
           success: true,
@@ -207,52 +208,53 @@ export const ozwellMethods = {
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
-    
+
     // Get user's API key
     const user = await Meteor.users.findOneAsync(this.userId);
     const apiKey = user?.profile?.ozwellApiKey;
-    
+
     if (!apiKey) {
       throw new Meteor.Error('ozwell-not-enabled', 'Ozwell is not enabled. Please add your API key in Settings.');
     }
 
     try {
-      // Build context for Ozwell
-      const ozwellContext = {
-        fieldType: context.fieldType,
-        originalText: context.originalText || '',
-        projectType: 'time_tracking',
-        domain: 'productivity',
-        userIntent: message,
-        examples: {
-          activity_title: ['Fix Login Bug', 'Team Meeting - Sprint Planning', 'Research Database Optimization'],
-          activity_notes: ['Completed initial research and documented findings', 'Made progress on feature with testing', 'Reviewed requirements and updated priorities']
-        }
-      };
+      // Build system message and prompt for Ozwell
+      const systemMessage = `You are a helpful AI assistant for TimeHarbor, a time tracking application. Help users write professional and clear ${context.fieldType === 'activity_title' ? 'activity titles' : 'activity descriptions'} for their work tracking. Be concise and professional.`;
 
-      // Call Ozwell API
-      const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/chat/completion`, {
+      const prompt = context.originalText
+        ? `Help me improve this ${context.fieldType === 'activity_title' ? 'activity title' : 'activity description'}: "${context.originalText}". User request: ${message}`
+        : `Help me write a ${context.fieldType === 'activity_title' ? 'activity title' : 'activity description'} for: ${message}`;
+
+      // Call Ozwell Completions API (correct endpoint)
+      const response = await fetch(`${OZWELL_CONFIG.baseUrl}/api/v1/completion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          message: message,
-          context: ozwellContext,
-          maxSuggestions: 3,
-          format: 'suggestions'
+          prompt: prompt,
+          systemMessage: systemMessage
         })
       });
 
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Real Ozwell API response:', data);
-        return {
-          success: true,
-          suggestions: data.suggestions || [],
-          response: data.response || 'Here are some suggestions based on your request.'
-        };
+
+        // Parse Ozwell API response format
+        if (data.choices && data.choices.length > 0) {
+          const aiResponse = data.choices[0].message.content;
+          return {
+            success: true,
+            suggestions: [aiResponse], // Ozwell returns single response, not multiple suggestions
+            response: 'Here\'s a suggestion from Ozwell AI:',
+            rawResponse: data
+          };
+        } else {
+          console.log('No choices in response, falling back to mock');
+          return this.generateMockResponse(message, context);
+        }
       } else {
         console.log(`API error ${response.status}, falling back to mock`);
         // Fall back to mock if API fails
@@ -264,14 +266,14 @@ export const ozwellMethods = {
       return this.generateMockResponse(message, context);
     }
   },
-  
+
   /**
    * Generate mock response (fallback)
    */
   generateMockResponse(message, context) {
     const msg = message.toLowerCase();
     const fieldType = context.fieldType;
-    
+
     // Intelligent mock responses based on message analysis
     if (msg.includes('testing') || msg.includes('test')) {
       if (fieldType === 'activity_title') {
@@ -288,7 +290,7 @@ export const ozwellMethods = {
         };
       }
     }
-    
+
     if (msg.includes('ticket') || msg.includes('open')) {
       if (fieldType === 'activity_title') {
         return {
@@ -304,7 +306,7 @@ export const ozwellMethods = {
         };
       }
     }
-    
+
     if (msg.includes('shorten') || msg.includes('shorter')) {
       if (fieldType === 'activity_title') {
         return {
@@ -320,7 +322,7 @@ export const ozwellMethods = {
         };
       }
     }
-    
+
     // Default response
     if (fieldType === 'activity_title') {
       return {
@@ -397,11 +399,11 @@ export const ozwellMethods = {
     if (!this.userId) {
       throw new Meteor.Error('not-authorized', 'Must be logged in');
     }
-    
+
     // Get user's API key
     const user = await Meteor.users.findOneAsync(this.userId);
     const apiKey = user?.profile?.ozwellApiKey;
-    
+
     if (!apiKey) {
       throw new Meteor.Error('ozwell-not-enabled', 'Ozwell is not enabled. Please add your API key in Settings.');
     }
@@ -435,7 +437,7 @@ export const ozwellMethods = {
       return this.createMockOzwellSession(workspaceId, userId);
     }
   },
-  
+
   /**
    * Create mock Ozwell session (fallback)
    */
@@ -445,7 +447,7 @@ export const ozwellMethods = {
       loginToken: `token_${Date.now()}`,
       userId: userId
     };
-    
+
     console.log(`Mock: Created Ozwell session for user ${userId} in workspace ${workspaceId}`);
     return mockSession;
   },
@@ -543,7 +545,7 @@ export const ozwellMethods = {
 
     // Search user's tickets and activities
     const searchRegex = new RegExp(query, 'i');
-    
+
     const tickets = await Tickets.find({
       userId: this.userId,
       $or: [
@@ -590,7 +592,7 @@ export const ozwellMethods = {
     const teamIds = userTeams.map(team => team._id);
 
     const searchConditions = { teamId: { $in: teamIds } };
-    
+
     if (query) {
       const searchRegex = new RegExp(query, 'i');
       searchConditions.$or = [
@@ -674,7 +676,7 @@ export const ozwellMethods = {
     }
 
     const searchConditions = { teamId: projectId };
-    
+
     if (query) {
       const searchRegex = new RegExp(query, 'i');
       searchConditions.$or = [
@@ -734,7 +736,7 @@ export const ozwellMethods = {
           }
         }
         break;
-        
+
       case 'dashboard':
         // Add recent activity summary
         const recentActivities = await ClockEvents.find({

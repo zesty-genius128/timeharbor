@@ -32,7 +32,7 @@ const OZWELL_CONFIG = {
 Meteor.callAsync('getOzwellConfig').then(config => {
   Object.assign(OZWELL_CONFIG, config);
   console.log('✅ Ozwell config loaded:', config);
-  
+
   // Test API connection
   return Meteor.callAsync('testOzwellConnection');
 }).then(testResult => {
@@ -73,12 +73,12 @@ const OzwellHelper = {
         console.log('✅ Real Ozwell session created:', realSessionUrl);
         ozwellState.sessionUrl.set(realSessionUrl);
         ozwellState.status.set('AI assistant ready');
-        
+
         // Setup communication with real Ozwell iframe
         setTimeout(() => {
           this.setupRealOzwellComm();
         }, 500);
-        
+
         return realSessionUrl;
       }
 
@@ -109,7 +109,7 @@ const OzwellHelper = {
     try {
       // Get current context for the session
       const inputTarget = ozwellState.currentInputTarget.get();
-      
+
       if (!context || !inputTarget) {
         console.warn('❌ Missing context for Ozwell session');
         return null;
@@ -118,7 +118,7 @@ const OzwellHelper = {
       // Get current text from the input field
       const inputElement = document.querySelector(inputTarget);
       const currentText = inputElement ? inputElement.value : '';
-      
+
       // Extract field type from context
       let fieldType = 'text';
       if (context.contextData && context.contextData.formType) {
@@ -147,7 +147,7 @@ const OzwellHelper = {
           teamName: context.teamName || 'Current Project',
           userHint: this.generateUserHint(fieldType, currentText)
         }));
-        
+
         return url.toString();
       }
 
@@ -195,13 +195,13 @@ const OzwellHelper = {
             console.log('📥 Text selected from real Ozwell:', data);
             this.handleRealOzwellTextSelected(data);
             break;
-            
+
           case 'session_ready':
             // Ozwell session is ready, send initial context
             console.log('🚀 Real Ozwell session ready');
             this.sendRealOzwellContext();
             break;
-            
+
           case 'cancelled':
           case 'close':
             // User cancelled the session
@@ -223,7 +223,7 @@ const OzwellHelper = {
   sendRealOzwellContext() {
     const context = ozwellState.currentContext.get();
     const inputTarget = ozwellState.currentInputTarget.get();
-    
+
     if (!context || !inputTarget) {
       console.warn('❌ Missing context for real Ozwell session');
       return;
@@ -271,10 +271,10 @@ const OzwellHelper = {
     if (inputElement) {
       const selectedText = data.selectedText || data.text || data.content;
       inputElement.value = selectedText;
-      
+
       // Trigger input event for reactive updates
       inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-      
+
       console.log('✅ Text selected from real Ozwell and applied:', selectedText);
     }
 
@@ -287,7 +287,7 @@ const OzwellHelper = {
   // Handle MCP requests from real Ozwell iframe
   async handleRealOzwellMCPRequest(data, source) {
     const { requestType, requestId, params } = data;
-    
+
     try {
       switch (requestType) {
         case 'get_context':
@@ -345,15 +345,15 @@ const OzwellHelper = {
           // Ozwell is ready to receive context
           this.sendInitialContext();
           break;
-          
+
         case 'aiResponse':
           this.handleAIResponse(data);
           break;
-          
+
         case 'requestContext':
           this.sendCurrentContext();
           break;
-          
+
         case 'close':
           OzwellHelper.close();
           break;
@@ -374,21 +374,21 @@ const OzwellHelper = {
           // Mock chat is ready, send initial context
           this.sendMockContext();
           break;
-          
+
         case 'text_selected':
           // User selected text from AI suggestions
           this.handleMockTextSelected(event.data);
           break;
-          
+
         case 'cancelled':
           // User cancelled the chat
           OzwellHelper.close();
           break;
-          
+
         case 'ozwell_api_call':
           // Handle API call request from iframe
           console.log('📤 Received API call request from iframe:', event.data);
-          
+
           // Call the server method to send to Ozwell API
           Meteor.call('sendMessageToOzwell', event.data.message, event.data.context, (error, result) => {
             if (error) {
@@ -439,9 +439,9 @@ const OzwellHelper = {
   sendMockContext() {
     const context = ozwellState.currentContext.get();
     const inputTarget = ozwellState.currentInputTarget.get();
-    
+
     console.log('🔍 sendMockContext called with:', { context, inputTarget });
-    
+
     if (!context || !inputTarget) {
       console.warn('❌ Missing context or inputTarget:', { context, inputTarget });
       return;
@@ -487,11 +487,11 @@ const OzwellHelper = {
     const inputElement = document.querySelector(inputTarget);
     if (inputElement) {
       inputElement.value = data.selectedText;
-      
+
       // Trigger input event so any listeners get notified
       inputElement.dispatchEvent(new Event('input', { bubbles: true }));
       inputElement.dispatchEvent(new Event('change', { bubbles: true }));
-      
+
       // Focus the input to show the change
       inputElement.focus();
     }
@@ -615,20 +615,20 @@ const OzwellHelper = {
   // Handle AI response from iframe
   handleAIResponse(data) {
     const inputTarget = ozwellState.currentInputTarget.get();
-    
+
     if (data.enhancedText && inputTarget) {
       // Update the original input field
       const targetElement = document.querySelector(inputTarget);
       if (targetElement) {
         targetElement.value = data.enhancedText;
-        
+
         // Trigger change event
         const event = new Event('change', { bubbles: true });
         targetElement.dispatchEvent(event);
-        
+
         // Show success feedback
         ozwellState.status.set('Text updated successfully!');
-        
+
         // Auto-close after delay
         setTimeout(() => {
           this.close();
@@ -676,7 +676,7 @@ const OzwellHelper = {
       }
       return;
     }
-    
+
     const context = {
       inputTarget,
       contextType,
@@ -717,7 +717,7 @@ const OzwellHelper = {
     try {
       const context = ozwellState.currentContext.get();
       const fullContext = await this.getFullContext(context || {});
-      
+
       source.postMessage({
         type: 'mcp_context_response',
         requestId: data.requestId,
@@ -736,9 +736,9 @@ const OzwellHelper = {
   async handleMCPUserHistorySearch(data, source) {
     try {
       const { query = '', limit = 10 } = data.params || {};
-      
+
       const result = await Meteor.callAsync('searchUserHistory', query, limit);
-      
+
       source.postMessage({
         type: 'mcp_user_history_response',
         requestId: data.requestId,
@@ -757,13 +757,13 @@ const OzwellHelper = {
   async handleMCPProjectHistorySearch(data, source) {
     try {
       const { projectId, query = '', limit = 10 } = data.params || {};
-      
+
       if (!projectId) {
         throw new Error('Project ID is required');
       }
-      
+
       const result = await Meteor.callAsync('searchProjectHistory', projectId, query, limit);
-      
+
       source.postMessage({
         type: 'mcp_project_history_response',
         requestId: data.requestId,
@@ -782,13 +782,13 @@ const OzwellHelper = {
   async handleMCPPageContextRequest(data, source) {
     try {
       const { pageType, pageData = {} } = data.params || {};
-      
+
       if (!pageType) {
         throw new Error('Page type is required');
       }
-      
+
       const result = await Meteor.callAsync('getPageContext', pageType, pageData);
-      
+
       source.postMessage({
         type: 'mcp_page_context_response',
         requestId: data.requestId,
@@ -853,11 +853,11 @@ Template.ozwellModal.events({
   'click #ozwellClose'() {
     OzwellHelper.close();
   },
-  
+
   'click #ozwellToggleView'() {
     OzwellHelper.toggleViewMode();
   },
-  
+
   'click #ozwellRetry'() {
     const context = ozwellState.currentContext.get();
     if (context) {
@@ -871,11 +871,11 @@ Template.ozwellSidecar.events({
   'click #ozwellCloseSidecar'() {
     OzwellHelper.close();
   },
-  
+
   'click #ozwellToggleViewSidecar'() {
     OzwellHelper.toggleViewMode();
   },
-  
+
   'click #ozwellRetrySidecar'() {
     const context = ozwellState.currentContext.get();
     if (context) {
@@ -888,14 +888,14 @@ Template.ozwellSidecar.events({
 Template.body.events({
   'click .ozwell-trigger'(event) {
     event.preventDefault();
-    
+
     const button = event.currentTarget;
     const inputTarget = button.getAttribute('data-input-target');
     const contextType = button.getAttribute('data-context-type');
     const contextData = button.getAttribute('data-context-data');
-    
+
     console.log('🔘 Plus button clicked:', { inputTarget, contextType, contextData });
-    
+
     let parsedContextData = {};
     try {
       if (contextData) {
