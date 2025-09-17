@@ -570,6 +570,85 @@ export const ozwellMethods = {
   },
 
   /**
+   * Search user's complete history across all projects for AI context
+   * @param {String} query - Search query (optional)
+   * @param {Number} limit - Maximum results to return
+   */
+  async searchUserHistory(query = '', limit = 10) {
+    check(query, String);
+    check(limit, Number);
+
+    if (!this.userId) {
+      throw new Meteor.Error('not-authorized', 'Must be logged in');
+    }
+
+    // Get all teams the user is a member of
+    const userTeams = await Teams.find({
+      members: this.userId
+    }).fetchAsync();
+
+    const teamIds = userTeams.map(team => team._id);
+
+    const searchConditions = { teamId: { $in: teamIds } };
+    
+    if (query) {
+      const searchRegex = new RegExp(query, 'i');
+      searchConditions.$or = [
+        { title: searchRegex },
+        { description: searchRegex },
+        { github: searchRegex }
+      ];
+    }
+
+    // Search tickets across all user's teams
+    const tickets = await Tickets.find(searchConditions, {
+      limit: limit,
+      sort: { createdAt: -1 },
+      fields: {
+        title: 1,
+        description: 1,
+        github: 1,
+        teamId: 1,
+        createdAt: 1,
+        accumulatedTime: 1
+      }
+    }).fetchAsync();
+
+    // Get clock events (activities) for the user
+    const activities = await ClockEvents.find({
+      userId: this.userId
+    }, {
+      limit: limit,
+      sort: { startTime: -1 },
+      fields: {
+        teamId: 1,
+        startTime: 1,
+        endTime: 1,
+        tickets: 1
+      }
+    }).fetchAsync();
+
+    // Enrich with team names
+    const enrichedTickets = tickets.map(ticket => {
+      const team = userTeams.find(t => t._id === ticket.teamId);
+      return {
+        ...ticket,
+        teamName: team?.name || 'Unknown Team'
+      };
+    });
+
+    const enrichedActivities = activities.map(activity => {
+      const team = userTeams.find(t => t._id === activity.teamId);
+      return {
+        ...activity,
+        teamName: team?.name || 'Unknown Team'
+      };
+    });
+
+    return { tickets: enrichedTickets, activities: enrichedActivities };
+  },
+
+  /**
    * Search project history for AI context
    * @param {String} projectId - The project/team ID
    * @param {String} query - Search query (optional)

@@ -208,6 +208,12 @@ const OzwellHelper = {
             console.log('❌ Real Ozwell session cancelled');
             OzwellHelper.close();
             break;
+
+          // MCP Request Handlers for Real Ozwell
+          case 'mcp_request':
+            console.log('📨 MCP request from real Ozwell:', data);
+            this.handleRealOzwellMCPRequest(data, event.source);
+            break;
         }
       }
     });
@@ -276,6 +282,47 @@ const OzwellHelper = {
     setTimeout(() => {
       OzwellHelper.close();
     }, 500);
+  },
+
+  // Handle MCP requests from real Ozwell iframe
+  async handleRealOzwellMCPRequest(data, source) {
+    const { requestType, requestId, params } = data;
+    
+    try {
+      switch (requestType) {
+        case 'get_context':
+          await this.handleMCPContextRequest({ requestId, params }, source);
+          break;
+        case 'search_user_history':
+          await this.handleMCPUserHistorySearch({ requestId, params }, source);
+          break;
+        case 'search_project_history':
+          await this.handleMCPProjectHistorySearch({ requestId, params }, source);
+          break;
+        case 'get_page_context':
+          await this.handleMCPPageContextRequest({ requestId, params }, source);
+          break;
+        default:
+          source.postMessage({
+            channel: 'iframe-basic',
+            message: 'mcp_response',
+            data: {
+              requestId,
+              error: `Unknown MCP request type: ${requestType}`
+            }
+          }, '*');
+      }
+    } catch (error) {
+      console.error('❌ Real Ozwell MCP request failed:', error);
+      source.postMessage({
+        channel: 'iframe-basic',
+        message: 'mcp_response',
+        data: {
+          requestId,
+          error: error.message || 'MCP request failed'
+        }
+      }, '*');
+    }
   },
 
   // Setup postMessage communication with iframe
@@ -363,6 +410,26 @@ const OzwellHelper = {
               }, window.location.origin);
             }
           });
+          break;
+
+        case 'mcp_context_request':
+          // Handle MCP context requests from iframe
+          this.handleMCPContextRequest(event.data, event.source);
+          break;
+
+        case 'mcp_search_user_history':
+          // Handle user history search requests
+          this.handleMCPUserHistorySearch(event.data, event.source);
+          break;
+
+        case 'mcp_search_project_history':
+          // Handle project history search requests
+          this.handleMCPProjectHistorySearch(event.data, event.source);
+          break;
+
+        case 'mcp_get_page_context':
+          // Handle page context requests
+          this.handleMCPPageContextRequest(event.data, event.source);
           break;
       }
     });
@@ -510,7 +577,7 @@ const OzwellHelper = {
       // Get user history if available
       if (baseContext.searchQuery) {
         promises.push(
-          Meteor.callAsync('searchMyHistory', baseContext.searchQuery, 5)
+          Meteor.callAsync('searchUserHistory', baseContext.searchQuery, 5)
         );
       }
 
@@ -643,6 +710,98 @@ const OzwellHelper = {
   toggleViewMode() {
     const current = ozwellState.viewMode.get();
     ozwellState.viewMode.set(current === 'modal' ? 'sidecar' : 'modal');
+  },
+
+  // MCP Context Request Handlers
+  async handleMCPContextRequest(data, source) {
+    try {
+      const context = ozwellState.currentContext.get();
+      const fullContext = await this.getFullContext(context || {});
+      
+      source.postMessage({
+        type: 'mcp_context_response',
+        requestId: data.requestId,
+        data: fullContext
+      }, window.location.origin);
+    } catch (error) {
+      console.error('❌ MCP context request failed:', error);
+      source.postMessage({
+        type: 'mcp_context_response',
+        requestId: data.requestId,
+        error: error.message || 'Failed to get context'
+      }, window.location.origin);
+    }
+  },
+
+  async handleMCPUserHistorySearch(data, source) {
+    try {
+      const { query = '', limit = 10 } = data.params || {};
+      
+      const result = await Meteor.callAsync('searchUserHistory', query, limit);
+      
+      source.postMessage({
+        type: 'mcp_user_history_response',
+        requestId: data.requestId,
+        data: result
+      }, window.location.origin);
+    } catch (error) {
+      console.error('❌ MCP user history search failed:', error);
+      source.postMessage({
+        type: 'mcp_user_history_response',
+        requestId: data.requestId,
+        error: error.message || 'Failed to search user history'
+      }, window.location.origin);
+    }
+  },
+
+  async handleMCPProjectHistorySearch(data, source) {
+    try {
+      const { projectId, query = '', limit = 10 } = data.params || {};
+      
+      if (!projectId) {
+        throw new Error('Project ID is required');
+      }
+      
+      const result = await Meteor.callAsync('searchProjectHistory', projectId, query, limit);
+      
+      source.postMessage({
+        type: 'mcp_project_history_response',
+        requestId: data.requestId,
+        data: result
+      }, window.location.origin);
+    } catch (error) {
+      console.error('❌ MCP project history search failed:', error);
+      source.postMessage({
+        type: 'mcp_project_history_response',
+        requestId: data.requestId,
+        error: error.message || 'Failed to search project history'
+      }, window.location.origin);
+    }
+  },
+
+  async handleMCPPageContextRequest(data, source) {
+    try {
+      const { pageType, pageData = {} } = data.params || {};
+      
+      if (!pageType) {
+        throw new Error('Page type is required');
+      }
+      
+      const result = await Meteor.callAsync('getPageContext', pageType, pageData);
+      
+      source.postMessage({
+        type: 'mcp_page_context_response',
+        requestId: data.requestId,
+        data: result
+      }, window.location.origin);
+    } catch (error) {
+      console.error('❌ MCP page context request failed:', error);
+      source.postMessage({
+        type: 'mcp_page_context_response',
+        requestId: data.requestId,
+        error: error.message || 'Failed to get page context'
+      }, window.location.origin);
+    }
   }
 };
 
