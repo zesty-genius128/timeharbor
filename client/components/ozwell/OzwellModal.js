@@ -14,40 +14,40 @@ window.addEventListener('message', (event) => {
       console.warn('[Ozwell Autofill] No inputTarget found, using fallback input.');
       // Fallback: autofill the first text input or textarea on the page
       inputElement = document.querySelector('input[type="text"], textarea');
-    if (
-      event.data &&
-      event.data.channel === 'iframe-basic' &&
-      event.data.message === 'selectedText' &&
-      typeof event.data.data?.text === 'string'
-    ) {
-      // Autofill the input box with the selected text from the iframe
-      const inputTarget = ozwellState.currentInputTarget.get();
-      let inputElement = inputTarget ? document.querySelector(inputTarget) : null;
-      if (!inputElement) {
-        inputElement = document.querySelector('input[type="text"], textarea');
+      if (
+        event.data &&
+        event.data.channel === 'iframe-basic' &&
+        event.data.message === 'selectedText' &&
+        typeof event.data.data?.text === 'string'
+      ) {
+        // Autofill the input box with the selected text from the iframe
+        const inputTarget = ozwellState.currentInputTarget.get();
+        let inputElement = inputTarget ? document.querySelector(inputTarget) : null;
+        if (!inputElement) {
+          inputElement = document.querySelector('input[type="text"], textarea');
+        }
+        if (inputElement) {
+          inputElement.value = event.data.data.text;
+          inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+          inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+          inputElement.focus();
+          let confirmDiv = document.createElement('div');
+          confirmDiv.textContent = 'Autofilled!';
+          confirmDiv.style.position = 'fixed';
+          confirmDiv.style.top = '20px';
+          confirmDiv.style.right = '20px';
+          confirmDiv.style.background = '#38bdf8';
+          confirmDiv.style.color = '#fff';
+          confirmDiv.style.padding = '8px 16px';
+          confirmDiv.style.borderRadius = '8px';
+          confirmDiv.style.zIndex = '9999';
+          document.body.appendChild(confirmDiv);
+          setTimeout(() => {
+            confirmDiv.remove();
+          }, 1500);
+        }
+        OzwellHelper.close();
       }
-      if (inputElement) {
-        inputElement.value = event.data.data.text;
-        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
-        inputElement.focus();
-        let confirmDiv = document.createElement('div');
-        confirmDiv.textContent = 'Autofilled!';
-        confirmDiv.style.position = 'fixed';
-        confirmDiv.style.top = '20px';
-        confirmDiv.style.right = '20px';
-        confirmDiv.style.background = '#38bdf8';
-        confirmDiv.style.color = '#fff';
-        confirmDiv.style.padding = '8px 16px';
-        confirmDiv.style.borderRadius = '8px';
-        confirmDiv.style.zIndex = '9999';
-        document.body.appendChild(confirmDiv);
-        setTimeout(() => {
-          confirmDiv.remove();
-        }, 1500);
-      }
-      OzwellHelper.close();
-    }
       confirmDiv.style.background = '#38bdf8';
       confirmDiv.style.color = '#fff';
       confirmDiv.style.padding = '8px 16px';
