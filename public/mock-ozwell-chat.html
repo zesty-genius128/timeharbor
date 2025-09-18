@@ -1,38 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mock Ozwell Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * { box-sizing: border-box; }
-        html, body { 
-            margin: 0; 
-            padding: 0; 
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
             height: 100%;
             width: 100%;
             overflow: hidden;
         }
+
         .container {
             height: 100%;
             width: 100%;
             display: flex;
             flex-direction: column;
         }
-        .chat-header { 
+
+        .chat-header {
             padding: 16px;
             border-bottom: 1px solid #e5e7eb;
             background: #f9fafb;
             flex-shrink: 0;
         }
-        .chat-container { 
+
+        .chat-container {
             flex: 1;
             overflow-y: auto;
             padding: 16px;
             width: 100%;
-            min-height: 0; /* Important for flex child scrolling */
+            min-height: 0;
+            /* Important for flex child scrolling */
         }
+
         .footer-buttons {
             background: #f9fafb;
             border-top: 1px solid #e5e7eb;
@@ -40,21 +50,25 @@
             width: 100%;
             flex-shrink: 0;
         }
-        .message-bubble { 
-            max-width: 85%; 
+
+        .message-bubble {
+            max-width: 85%;
             margin-bottom: 12px;
         }
-        .user-message { 
-            background: #3b82f6; 
-            color: white; 
-            margin-left: auto; 
-            text-align: right; 
+
+        .user-message {
+            background: #3b82f6;
+            color: white;
+            margin-left: auto;
+            text-align: right;
         }
-        .ai-message { 
-            background: #f1f5f9; 
-            color: #334155; 
-            margin-right: auto; 
+
+        .ai-message {
+            background: #f1f5f9;
+            color: #334155;
+            margin-right: auto;
         }
+
         .suggestion-button {
             background: #e2e8f0;
             border: 1px solid #cbd5e1;
@@ -66,12 +80,14 @@
             font-size: 14px;
             width: auto;
         }
+
         .suggestion-button:hover {
             background: #3b82f6;
             color: white;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Chat Header -->
@@ -83,14 +99,16 @@
         <!-- Chat Messages -->
         <div id="chat-container" class="chat-container space-y-3">
             <div class="message-bubble ai-message p-3 rounded-lg">
-                <p class="text-sm">Hi! I'm here to help you improve your text. You can ask me anything or use one of the suggestions below.</p>
+                <p class="text-sm">Hi! I'm here to help you improve your text. You can ask me anything or use one of the
+                    suggestions below.</p>
             </div>
         </div>
 
         <!-- Chat Input -->
         <div class="border-t border-gray-200 p-4 bg-white">
             <div class="flex gap-2">
-                <input type="text" id="chat-input" placeholder="Ask me to help improve your text..." class="flex-1 input input-bordered input-sm" />
+                <input type="text" id="chat-input" placeholder="Ask me to help improve your text..."
+                    class="flex-1 input input-bordered input-sm" />
                 <button id="send-btn" class="btn btn-primary btn-sm">
                     <span id="send-icon">Send</span>
                     <span id="send-loading" class="loading loading-spinner loading-sm hidden"></span>
@@ -101,10 +119,12 @@
         <!-- Action Buttons Footer -->
         <div class="footer-buttons">
             <div class="flex gap-2 justify-end">
-                <button id="cancel-btn" class="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-100">
+                <button id="cancel-btn"
+                    class="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-100">
                     Cancel
                 </button>
-                <button id="save-btn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50" disabled>
+                <button id="save-btn"
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50" disabled>
                     Save and Close
                 </button>
             </div>
@@ -118,9 +138,9 @@
         let conversationHistory = [];
 
         // Listen for initialization from parent
-        window.addEventListener('message', function(event) {
+        window.addEventListener('message', function (event) {
             if (event.origin !== window.location.origin) return;
-            
+
             if (event.data.type === 'init_session') {
                 initializeChat(event.data);
             }
@@ -128,20 +148,20 @@
 
         function initializeChat(data) {
             console.log('🎯 Mock chat received init_session data:', data);
-            
+
             originalText = data.currentText || '';
             fieldType = data.fieldType || 'activity_title'; // Default to activity_title if missing
-            
+
             console.log('📋 Context extracted:', { originalText, fieldType, teamName: data.teamName });
-            
+
             // Update context info
-            document.getElementById('context-info').textContent = 
+            document.getElementById('context-info').textContent =
                 `Improving ${fieldType.replace('_', ' ')}: "${originalText}"`;
 
             // Add initial context to conversation
             if (originalText) {
                 addMessage('user', `Please help me improve this ${fieldType.replace('_', ' ')}: "${originalText}"`);
-                
+
                 // Generate initial suggestions
                 setTimeout(() => {
                     generateAIResponse(originalText, fieldType);
@@ -158,16 +178,16 @@
             const chatContainer = document.getElementById('chat-container');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message-bubble ${sender}-message p-3 rounded-lg`;
-            
+
             if (isHtml) {
                 messageDiv.innerHTML = `<div class="text-sm">${text}</div>`;
             } else {
                 messageDiv.innerHTML = `<p class="text-sm">${text}</p>`;
             }
-            
+
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            
+
             // Add to conversation history
             conversationHistory.push({
                 sender: sender,
@@ -184,16 +204,16 @@
         function sendUserMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
-            
+
             if (!message) return;
-            
+
             // Add user message
             addMessage('user', message);
             input.value = '';
-            
+
             // Show loading state
             toggleSendButton(true);
-            
+
             // Send to real Ozwell API
             sendToOzwellAPI(message);
         }
@@ -205,9 +225,9 @@
                 originalText: originalText,
                 teamId: 'current-team-id' // This would come from the session
             };
-            
+
             console.log('📤 Sending to Ozwell API:', { message, context });
-            
+
             // Use postMessage to call server method through parent window
             window.parent.postMessage({
                 type: 'ozwell_api_call',
@@ -217,9 +237,9 @@
         }
 
         // Listen for API responses from parent
-        window.addEventListener('message', function(event) {
+        window.addEventListener('message', function (event) {
             if (event.origin !== window.location.origin) return;
-            
+
             if (event.data.type === 'ozwell_api_response') {
                 console.log('📥 Received Ozwell API response:', event.data);
                 handleOzwellAPIResponse(event.data.result);
@@ -230,12 +250,12 @@
         function handleOzwellAPIResponse(result) {
             if (result.success) {
                 let responseHtml = result.response + '<br><br>';
-                
+
                 // Add clickable suggestions
                 result.suggestions.forEach(suggestion => {
                     responseHtml += `<span class="suggestion-button" onclick="selectSuggestion('${suggestion.replace(/'/g, '\\\'')}')">${suggestion}</span><br>`;
                 });
-                
+
                 addAIMessage(responseHtml);
             } else {
                 addAIMessage('Sorry, I encountered an error. Please try again or contact support.');
@@ -246,7 +266,7 @@
             const sendIcon = document.getElementById('send-icon');
             const sendLoading = document.getElementById('send-loading');
             const sendBtn = document.getElementById('send-btn');
-            
+
             if (loading) {
                 sendIcon.classList.add('hidden');
                 sendLoading.classList.remove('hidden');
@@ -261,102 +281,102 @@
         function handleAIResponse(userMessage) {
             // Analyze the user's message and generate contextual responses
             const message = userMessage.toLowerCase();
-            
+
             console.log('🤖 AI analyzing message:', message);
             console.log('🏷️ Current fieldType:', fieldType);
-            
+
             // Check what the user is asking for
             if (message.includes('testing') || message.includes('test')) {
                 console.log('✅ Detected: testing request');
                 if (fieldType === 'activity_title') {
                     console.log('📝 Generating activity_title suggestions for testing');
                     addAIMessage('Great! Here are some testing-focused titles:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Testing Application Features\')">Testing Application Features</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Quality Assurance Testing\')">Quality Assurance Testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Bug Testing and Validation\')">Bug Testing and Validation</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Testing Application Features\')">Testing Application Features</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Quality Assurance Testing\')">Quality Assurance Testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Bug Testing and Validation\')">Bug Testing and Validation</span>');
                 } else {
                     console.log('📝 Generating activity_notes suggestions for testing');
                     addAIMessage('Here are some testing-related descriptions:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Working on comprehensive testing of new features\')">Working on comprehensive testing of new features</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Conducting quality assurance and bug validation\')">Conducting quality assurance and bug validation</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Testing user interface and functionality\')">Testing user interface and functionality</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Working on comprehensive testing of new features\')">Working on comprehensive testing of new features</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Conducting quality assurance and bug validation\')">Conducting quality assurance and bug validation</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Testing user interface and functionality\')">Testing user interface and functionality</span>');
                 }
                 return;
             }
-            
+
             if (message.includes('mock') || message.includes('ui')) {
                 console.log('✅ Detected: mock/UI request');
                 if (fieldType === 'activity_title') {
                     addAIMessage('Perfect! Here are some UI/mock testing titles:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Mock UI Testing\')">Mock UI Testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'UI Component Testing\')">UI Component Testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Interface Mock Testing\')">Interface Mock Testing</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Mock UI Testing\')">Mock UI Testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'UI Component Testing\')">UI Component Testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Interface Mock Testing\')">Interface Mock Testing</span>');
                 } else {
                     addAIMessage('Here are some UI/mock testing descriptions:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Creating and testing UI mockups\')">Creating and testing UI mockups</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Validating user interface components\')">Validating user interface components</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Mock data testing for UI elements\')">Mock data testing for UI elements</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Creating and testing UI mockups\')">Creating and testing UI mockups</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Validating user interface components\')">Validating user interface components</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Mock data testing for UI elements\')">Mock data testing for UI elements</span>');
                 }
                 return;
             }
-            
+
             if (message.includes('shorten') || message.includes('shorter') || message.includes('brief')) {
                 console.log('✅ Detected: shorten request');
                 if (fieldType === 'activity_title') {
                     addAIMessage('Here are shorter, more concise titles:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'UI Testing\')">UI Testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Mock Testing\')">Mock Testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'QA Work\')">QA Work</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'UI Testing\')">UI Testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Mock Testing\')">Mock Testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'QA Work\')">QA Work</span>');
                 } else {
                     addAIMessage('Here are shorter descriptions:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Testing UI components\')">Testing UI components</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Mock UI validation\')">Mock UI validation</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Interface testing\')">Interface testing</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Testing UI components\')">Testing UI components</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Mock UI validation\')">Mock UI validation</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Interface testing\')">Interface testing</span>');
                 }
                 return;
             }
-            
+
             if (message.includes('work on') || message.includes('working on') || message.includes('in progress') || message.includes('not done')) {
                 console.log('✅ Detected: work-in-progress request');
                 if (fieldType === 'activity_title') {
                     addAIMessage('Perfect! Here are work-in-progress titles:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Working on UI Testing\')">Working on UI Testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'In Progress: Mock Testing\')">In Progress: Mock Testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Developing Test Cases\')">Developing Test Cases</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Working on UI Testing\')">Working on UI Testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'In Progress: Mock Testing\')">In Progress: Mock Testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Developing Test Cases\')">Developing Test Cases</span>');
                 } else {
                     addAIMessage('Here are work-in-progress descriptions:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Currently working on UI testing\')">Currently working on UI testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Mock testing in progress\')">Mock testing in progress</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Active UI validation work\')">Active UI validation work</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Currently working on UI testing\')">Currently working on UI testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Mock testing in progress\')">Mock testing in progress</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Active UI validation work\')">Active UI validation work</span>');
                 }
                 return;
             }
-            
+
             if (message.includes('ticket') || message.includes('open')) {
                 console.log('✅ Detected: ticket request');
                 if (fieldType === 'activity_title') {
                     addAIMessage('Here are some ticket-oriented titles:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Create UI Testing Ticket\')">Create UI Testing Ticket</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'New Mock Testing Task\')">New Mock Testing Task</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Testing Work Item\')">Testing Work Item</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Create UI Testing Ticket\')">Create UI Testing Ticket</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'New Mock Testing Task\')">New Mock Testing Task</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Testing Work Item\')">Testing Work Item</span>');
                 } else {
                     addAIMessage('Here are descriptions for ticket creation:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Creating ticket for UI testing work\')">Creating ticket for UI testing work</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Opening task for mock testing\')">Opening task for mock testing</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Tracking testing progress\')">Tracking testing progress</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Creating ticket for UI testing work\')">Creating ticket for UI testing work</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Opening task for mock testing\')">Opening task for mock testing</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Tracking testing progress\')">Tracking testing progress</span>');
                 }
                 return;
             }
-            
+
             console.log('❓ No specific pattern matched, using default response');
-            
+
             // Default response that acknowledges we didn't understand
             addAIMessage('I want to help you better! Could you be more specific? For example:<br><br>' +
-                       '• "Make it shorter"<br>' +
-                       '• "Make it more professional"<br>' +
-                       '• "I\'m working on testing"<br>' +
-                       '• "Add some creativity"<br><br>' +
-                       'Or tell me more about what you\'re trying to accomplish!');
+                '• "Make it shorter"<br>' +
+                '• "Make it more professional"<br>' +
+                '• "I\'m working on testing"<br>' +
+                '• "Add some creativity"<br><br>' +
+                'Or tell me more about what you\'re trying to accomplish!');
         }
 
         function generateAIResponse(text, type) {
@@ -364,27 +384,27 @@
             if (type === 'activity_title') {
                 if (text.toLowerCase().includes('homework')) {
                     addAIMessage('Here are some homework-focused titles:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Math Homework - Chapter 5 Algebra\')">Math Homework - Chapter 5 Algebra</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Complete Mathematics Assignment\')">Complete Mathematics Assignment</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Homework: Algebra Basics\')">Homework: Algebra Basics</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Math Homework - Chapter 5 Algebra\')">Math Homework - Chapter 5 Algebra</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Complete Mathematics Assignment\')">Complete Mathematics Assignment</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Homework: Algebra Basics\')">Homework: Algebra Basics</span>');
                 } else if (text.toLowerCase().includes('meeting')) {
                     addAIMessage('Here are some meeting-focused titles:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Team Standup Meeting\')">Team Standup Meeting</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Weekly Team Meeting\')">Weekly Team Meeting</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Project Status Meeting\')">Project Status Meeting</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Team Standup Meeting\')">Team Standup Meeting</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Weekly Team Meeting\')">Weekly Team Meeting</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Project Status Meeting\')">Project Status Meeting</span>');
                 } else {
                     addAIMessage('Here are some general title suggestions:<br><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Implement User Authentication\')">Implement User Authentication</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Fix Login Form Bug\')">Fix Login Form Bug</span><br>' +
-                               '<span class="suggestion-button" onclick="selectSuggestion(\'Research Database Optimization\')">Research Database Optimization</span>');
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Implement User Authentication\')">Implement User Authentication</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Fix Login Form Bug\')">Fix Login Form Bug</span><br>' +
+                        '<span class="suggestion-button" onclick="selectSuggestion(\'Research Database Optimization\')">Research Database Optimization</span>');
                 }
             } else if (type === 'activity_notes') {
                 addAIMessage('Here are some description suggestions:<br><br>' +
-                           '<span class="suggestion-button" onclick="selectSuggestion(\'Completed initial research and documented findings\')">Completed initial research and documented findings</span><br>' +
-                           '<span class="suggestion-button" onclick="selectSuggestion(\'Made progress on main feature with testing\')">Made progress on main feature with testing</span><br>' +
-                           '<span class="suggestion-button" onclick="selectSuggestion(\'Reviewed requirements and updated priorities\')">Reviewed requirements and updated priorities</span>');
+                    '<span class="suggestion-button" onclick="selectSuggestion(\'Completed initial research and documented findings\')">Completed initial research and documented findings</span><br>' +
+                    '<span class="suggestion-button" onclick="selectSuggestion(\'Made progress on main feature with testing\')">Made progress on main feature with testing</span><br>' +
+                    '<span class="suggestion-button" onclick="selectSuggestion(\'Reviewed requirements and updated priorities\')">Reviewed requirements and updated priorities</span>');
             }
-            
+
             // Add interactive prompt
             setTimeout(() => {
                 addAIMessage('<em>💬 You can also type your own requests like "make it shorter", "more professional", or describe what you\'re working on!</em>');
@@ -393,13 +413,13 @@
 
         function selectSuggestion(text) {
             selectedText = text;
-            
+
             // Highlight the selected suggestion
             document.querySelectorAll('.suggestion-button').forEach(btn => {
                 btn.style.background = '#e2e8f0';
                 btn.style.color = '#334155';
             });
-            
+
             // Find and highlight the clicked suggestion
             const buttons = document.querySelectorAll('.suggestion-button');
             buttons.forEach(btn => {
@@ -408,16 +428,16 @@
                     btn.style.color = 'white';
                 }
             });
-            
+
             // Enable save button
             document.getElementById('save-btn').disabled = false;
-            
+
             // Add confirmation message
             addMessage('user', `I'll use: "${text}"`);
             setTimeout(() => {
                 addAIMessage('Perfect! Click "Save and Close" to use this text, or continue chatting for more options.');
             }, 500);
-            
+
             // Send selected text to parent using the correct message type
             console.log('🎯 Suggestion selected, sending to parent:', text);
             window.parent.postMessage({
@@ -428,14 +448,14 @@
 
         // Event listeners
         document.getElementById('send-btn').addEventListener('click', sendUserMessage);
-        
-        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+
+        document.getElementById('chat-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 sendUserMessage();
             }
         });
 
-        document.getElementById('save-btn').addEventListener('click', function() {
+        document.getElementById('save-btn').addEventListener('click', function () {
             // Send selected text back to parent
             window.parent.postMessage({
                 type: 'text_selected',
@@ -445,7 +465,7 @@
             }, window.location.origin);
         });
 
-        document.getElementById('cancel-btn').addEventListener('click', function() {
+        document.getElementById('cancel-btn').addEventListener('click', function () {
             // Send cancel message to parent
             window.parent.postMessage({
                 type: 'cancelled',
@@ -460,4 +480,5 @@
         }, window.location.origin);
     </script>
 </body>
+
 </html>

@@ -40,13 +40,15 @@
         {{#if ozwellSessionUrl}}
         <div class="flex-1 relative">
           <iframe id="ozwellIframe" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
-            title="Ozwell AI Writing Assistant">
-          </iframe>
+            title="Ozwell AI Writing Assistant"></iframe>
         </div>
-        <!-- Modal Action Buttons -->
-        <div class="flex justify-end gap-2 p-4 border-t border-base-300 bg-base-100 sticky bottom-0 z-20">
-          <button id="ozwellSaveClose" class="btn btn-success">Save &amp; Close</button>
-          <button id="ozwellCancel" class="btn btn-outline">Cancel</button>
+        <!-- Autofill Option 2 UI -->
+        <div class="flex flex-col items-center gap-2 p-4 border-t border-base-300 bg-base-100 sticky bottom-0 z-20">
+          <button id="ozwellUseSelected" class="btn btn-info">Use Selected Text</button>
+          <div class="flex justify-end gap-2 w-full">
+            <button id="ozwellSaveClose" class="btn btn-success">Save &amp; Close</button>
+            <button id="ozwellCancel" class="btn btn-outline">Cancel</button>
+          </div>
         </div>
         {{else}}
         <div class="flex items-center justify-center h-full">

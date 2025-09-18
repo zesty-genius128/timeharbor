@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Ozwell Autofill Test (Option 2)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+        }
+
+        .suggestion {
+            background: #f0f4f8;
+            padding: 1em;
+            border-radius: 8px;
+            margin-bottom: 1em;
+        }
+
+        button {
+            background: #38bdf8;
+            color: #fff;
+            border: none;
+            padding: 0.5em 1em;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0ea5e9;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Ozwell Title Suggestions</h2>
+    <div class="suggestion" id="suggestion1">Project Kickoff Meeting</div>
+    <div class="suggestion" id="suggestion2">Weekly Status Update</div>
+    <div class="suggestion" id="suggestion3">Client Feedback Review</div>
+    <button id="use-selected">Use Selected Text</button>
+    <p style="margin-top:2em;color:#888;">Select any part of the text above, then click <b>Use Selected Text</b> to
+        autofill the host input.</p>
+    <script>
+        function getSelectedText() {
+            return window.getSelection().toString();
+        }
+        function autofillSelectedText() {
+            const text = getSelectedText();
+            if (text.trim()) {
+                window.parent.postMessage({
+                    channel: 'iframe-basic',
+                    message: 'autofill',
+                    data: { text }
+                }, '*');
+            } else {
+                alert('Please select some text first!');
+            }
+        }
+        document.getElementById('use-selected').addEventListener('click', autofillSelectedText);
+    </script>
+</body>
+
+</html>
