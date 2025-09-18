@@ -8,13 +8,31 @@ window.addEventListener('message', (event) => {
   ) {
     // Autofill the input box with the provided text
     const inputTarget = ozwellState.currentInputTarget.get();
-    if (inputTarget) {
-      const inputElement = document.querySelector(inputTarget);
-      if (inputElement) {
-        inputElement.value = event.data.data.text;
-        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+    let inputElement = inputTarget ? document.querySelector(inputTarget) : null;
+    if (!inputElement) {
+      // Fallback: autofill the first text input or textarea on the page
+      inputElement = document.querySelector('input[type="text"], textarea');
+    }
+    if (inputElement) {
+      inputElement.value = event.data.data.text;
+      inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+      inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+      inputElement.focus();
+      // Show a temporary confirmation message
+      let confirmDiv = document.createElement('div');
+      confirmDiv.textContent = 'Autofilled!';
+      confirmDiv.style.position = 'fixed';
+      confirmDiv.style.top = '20px';
+      confirmDiv.style.right = '20px';
+      confirmDiv.style.background = '#38bdf8';
+      confirmDiv.style.color = '#fff';
+      confirmDiv.style.padding = '8px 16px';
+      confirmDiv.style.borderRadius = '8px';
+      confirmDiv.style.zIndex = '9999';
+      document.body.appendChild(confirmDiv);
+      setTimeout(() => {
+        confirmDiv.remove();
+      }, 1500);
     }
     // Optionally close the modal after autofill
     OzwellHelper.close();
@@ -705,6 +723,7 @@ const OzwellHelper = {
       return;
     }
 
+    // Build context object
     const context = {
       inputTarget,
       contextType,
@@ -713,13 +732,21 @@ const OzwellHelper = {
       searchQuery: contextData?.searchQuery
     };
 
+    // Check if we already have a session for this project/context
+    const prevContext = ozwellState.currentContext.get();
+    const prevSessionUrl = ozwellState.sessionUrl.get();
+    const prevProjectId = prevContext?.projectId;
+    const newProjectId = context.projectId;
+
     ozwellState.currentInputTarget.set(inputTarget);
     ozwellState.currentContext.set(context);
     ozwellState.isOpen.set(true);
     ozwellState.status.set('Initializing...');
 
-    // Create session
-    await this.createSession(context);
+    // Only create a new session if project/context changed or no session exists
+    if (!prevSessionUrl || prevProjectId !== newProjectId) {
+      await this.createSession(context);
+    }
 
     // Setup iframe communication
     this.setupIframeComm();
@@ -728,9 +755,8 @@ const OzwellHelper = {
   // Close Ozwell
   close() {
     ozwellState.isOpen.set(false);
-    ozwellState.sessionUrl.set(null);
+    // Do NOT clear sessionUrl or currentContext, so session persists
     ozwellState.currentInputTarget.set(null);
-    ozwellState.currentContext.set(null);
     ozwellState.status.set('');
   },
 
