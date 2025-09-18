@@ -6,10 +6,12 @@ window.addEventListener('message', (event) => {
     event.data.message === 'autofill' &&
     typeof event.data.data?.text === 'string'
   ) {
+    console.log('[Ozwell Autofill] Received autofill postMessage:', event.data);
     // Autofill the input box with the provided text
     const inputTarget = ozwellState.currentInputTarget.get();
     let inputElement = inputTarget ? document.querySelector(inputTarget) : null;
     if (!inputElement) {
+      console.warn('[Ozwell Autofill] No inputTarget found, using fallback input.');
       // Fallback: autofill the first text input or textarea on the page
       inputElement = document.querySelector('input[type="text"], textarea');
     }
@@ -33,6 +35,9 @@ window.addEventListener('message', (event) => {
       setTimeout(() => {
         confirmDiv.remove();
       }, 1500);
+      console.log('[Ozwell Autofill] Input autofilled and confirmation shown.');
+    } else {
+      console.error('[Ozwell Autofill] No input element found to autofill.');
     }
     // Optionally close the modal after autofill
     OzwellHelper.close();
@@ -78,9 +83,9 @@ Meteor.callAsync('getOzwellConfig').then(config => {
 }).then(testResult => {
   console.log('Ozwell API test result:', testResult);
   if (testResult.success) {
-    console.log('🎉 Ozwell API is available!');
+    console.log('Ozwell API is available!');
   } else {
-    console.log('⚠️ Ozwell API not available, using mock mode');
+    console.log('Ozwell API not available, using mock mode');
   }
 }).catch(error => {
   console.error('Failed to get Ozwell configuration or test connection:', error);
@@ -110,7 +115,7 @@ const OzwellHelper = {
       // Try to create a real Ozwell session first
       const realSessionUrl = await this.createRealOzwellSession(context);
       if (realSessionUrl) {
-        console.log('✅ Real Ozwell session created:', realSessionUrl);
+        console.log('Real Ozwell session created:', realSessionUrl);
         ozwellState.sessionUrl.set(realSessionUrl);
         ozwellState.status.set('AI assistant ready');
 
@@ -123,7 +128,7 @@ const OzwellHelper = {
       }
 
       // Fallback to mock if real session fails
-      console.log('⚠️ Real Ozwell session failed, using mock');
+      console.log('Real Ozwell session failed, using mock');
       const mockChatUrl = `${window.location.origin}/mock-ozwell-chat.html`;
       ozwellState.sessionUrl.set(mockChatUrl);
       ozwellState.status.set('AI assistant ready (mock mode)');
@@ -151,7 +156,7 @@ const OzwellHelper = {
       const inputTarget = ozwellState.currentInputTarget.get();
 
       if (!context || !inputTarget) {
-        console.warn('❌ Missing context for Ozwell session');
+        console.warn('Missing context for Ozwell session');
         return null;
       }
 
@@ -181,7 +186,7 @@ const OzwellHelper = {
         // Store session ID for future reference
         if (sessionResult.sessionId) {
           ozwellState.sessionId.set(sessionResult.sessionId);
-          console.log('📝 Session ID stored:', sessionResult.sessionId);
+          console.log('Session ID stored:', sessionResult.sessionId);
         }
 
         // Add context parameters to the session URL for better AI understanding
@@ -238,26 +243,26 @@ const OzwellHelper = {
           case 'text_selected':
           case 'content_selected':
             // User selected text from Ozwell
-            console.log('📥 Text selected from real Ozwell:', data);
+            console.log('Text selected from real Ozwell:', data);
             this.handleRealOzwellTextSelected(data);
             break;
 
           case 'session_ready':
             // Ozwell session is ready, send initial context
-            console.log('🚀 Real Ozwell session ready');
+            console.log('Real Ozwell session ready');
             this.sendRealOzwellContext();
             break;
 
           case 'cancelled':
           case 'close':
             // User cancelled the session
-            console.log('❌ Real Ozwell session cancelled');
+            console.log('Real Ozwell session cancelled');
             OzwellHelper.close();
             break;
 
           // MCP Request Handlers for Real Ozwell
           case 'mcp_request':
-            console.log('📨 MCP request from real Ozwell:', data);
+            console.log('MCP request from real Ozwell:', data);
             this.handleRealOzwellMCPRequest(data, event.source);
             break;
         }
@@ -271,13 +276,13 @@ const OzwellHelper = {
     const inputTarget = ozwellState.currentInputTarget.get();
 
     if (!context || !inputTarget) {
-      console.warn('❌ Missing context for real Ozwell session');
+      console.warn('Missing context for real Ozwell session');
       return;
     }
 
     const iframe = document.getElementById('ozwellIframe') || document.getElementById('ozwellIframeSidecar');
     if (!iframe) {
-      console.warn('❌ No Ozwell iframe found');
+      console.warn('No Ozwell iframe found');
       return;
     }
 
@@ -303,7 +308,7 @@ const OzwellHelper = {
       }
     };
 
-    console.log('📤 Sending context to real Ozwell:', contextData);
+    console.log('Sending context to real Ozwell:', contextData);
     iframe.contentWindow.postMessage(contextData, '*');
   },
 
@@ -321,7 +326,7 @@ const OzwellHelper = {
       // Trigger input event for reactive updates
       inputElement.dispatchEvent(new Event('input', { bubbles: true }));
 
-      console.log('✅ Text selected from real Ozwell and applied:', selectedText);
+      console.log('Text selected from real Ozwell and applied:', selectedText);
     }
 
     // Close the modal after a short delay to let user see the change
@@ -359,7 +364,7 @@ const OzwellHelper = {
           }, '*');
       }
     } catch (error) {
-      console.error('❌ Real Ozwell MCP request failed:', error);
+      console.error('Real Ozwell MCP request failed:', error);
       source.postMessage({
         channel: 'iframe-basic',
         message: 'mcp_response',
@@ -433,12 +438,12 @@ const OzwellHelper = {
 
         case 'ozwell_api_call':
           // Handle API call request from iframe
-          console.log('📤 Received API call request from iframe:', event.data);
+          console.log('Received API call request from iframe:', event.data);
 
           // Call the server method to send to Ozwell API
           Meteor.call('sendMessageToOzwell', event.data.message, event.data.context, (error, result) => {
             if (error) {
-              console.error('❌ Error calling Ozwell API:', error);
+              console.error('Error calling Ozwell API:', error);
               // Send error response back to iframe
               event.source.postMessage({
                 type: 'ozwell_api_response',
@@ -448,7 +453,7 @@ const OzwellHelper = {
                 }
               }, window.location.origin);
             } else {
-              console.log('✅ Ozwell API response:', result);
+              console.log('Ozwell API response:', result);
               // Send successful response back to iframe
               event.source.postMessage({
                 type: 'ozwell_api_response',
@@ -486,30 +491,30 @@ const OzwellHelper = {
     const context = ozwellState.currentContext.get();
     const inputTarget = ozwellState.currentInputTarget.get();
 
-    console.log('🔍 sendMockContext called with:', { context, inputTarget });
+    console.log('sendMockContext called with:', { context, inputTarget });
 
     if (!context || !inputTarget) {
-      console.warn('❌ Missing context or inputTarget:', { context, inputTarget });
+      console.warn('Missing context or inputTarget:', { context, inputTarget });
       return;
     }
 
     const iframe = document.getElementById('ozwellIframe') || document.getElementById('ozwellIframeSidecar');
     if (!iframe) {
-      console.warn('❌ No iframe found');
+      console.warn('No iframe found');
       return;
     }
 
     // Get current text from the input field
     const inputElement = document.querySelector(inputTarget);
     const currentText = inputElement ? inputElement.value : '';
-    console.log('📝 Current text from input:', currentText);
+    console.log('Current text from input:', currentText);
 
     // Extract field type from context
     let fieldType = 'text';
     if (context.contextData && context.contextData.formType) {
       fieldType = context.contextData.formType;
     }
-    console.log('🏷️ Field type extracted:', fieldType);
+    console.log('Field type extracted:', fieldType);
 
     const messageData = {
       type: 'init_session',
@@ -518,7 +523,7 @@ const OzwellHelper = {
       teamName: context.teamName || 'Current Project'
     };
 
-    console.log('📤 Sending to iframe:', messageData);
+    console.log('Sending to iframe:', messageData);
 
     // Send initialization data to mock chat
     iframe.contentWindow.postMessage(messageData, window.location.origin);
@@ -753,11 +758,15 @@ const OzwellHelper = {
   },
 
   // Close Ozwell
-  close() {
+  close({ persistSession = true } = {}) {
     ozwellState.isOpen.set(false);
-    // Do NOT clear sessionUrl or currentContext, so session persists
     ozwellState.currentInputTarget.set(null);
     ozwellState.status.set('');
+    if (!persistSession) {
+      ozwellState.sessionUrl.set(null);
+      ozwellState.currentContext.set(null);
+      ozwellState.sessionId.set(null);
+    }
   },
 
   // Toggle view mode
@@ -913,11 +922,17 @@ Template.ozwellModal.events({
         message: 'saveAndClose'
       }, '*');
     }
-    OzwellHelper.close();
+    // Save & Close: persist session/context for next open
+    // Do NOT clear ozwellState.sessionUrl or ozwellState.currentContext
+    OzwellHelper.close({ persistSession: true });
   },
 
   'click #ozwellCancel'(event) {
-    OzwellHelper.close();
+    // Cancel: clear session/context so next open starts a new session
+    ozwellState.sessionUrl.set(null);
+    ozwellState.currentContext.set(null);
+    ozwellState.sessionId.set(null);
+    OzwellHelper.close({ persistSession: false });
   },
   'click #ozwellClose'() {
     OzwellHelper.close();
@@ -978,19 +993,19 @@ Template.body.events({
     const contextType = button.getAttribute('data-context-type');
     const contextData = button.getAttribute('data-context-data');
 
-    console.log('🔘 Plus button clicked:', { inputTarget, contextType, contextData });
+    console.log('Plus button clicked:', { inputTarget, contextType, contextData });
 
     let parsedContextData = {};
     try {
       if (contextData) {
         parsedContextData = JSON.parse(contextData);
-        console.log('✅ Parsed context data:', parsedContextData);
+        console.log('Parsed context data:', parsedContextData);
       }
     } catch (e) {
-      console.warn('❌ Failed to parse context data:', e);
+      console.warn('Failed to parse context data:', e);
     }
 
-    console.log('🚀 Opening Ozwell with:', { inputTarget, contextType, parsedContextData });
+    console.log('Opening Ozwell with:', { inputTarget, contextType, parsedContextData });
     OzwellHelper.open(inputTarget, contextType, parsedContextData);
   }
 });
