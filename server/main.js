@@ -37,8 +37,8 @@ Meteor.startup(async () => {
   }
 
   // Configure GitHub OAuth from environment variables
-  const githubClientId = process.env.GITHUB_CLIENT_ID;
-  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+  const githubClientId = process.env.HUB_CLIENT_ID;
+  const githubClientSecret = process.env.HUB_CLIENT_SECRET;
   
   if (githubClientId && githubClientSecret) {
     await ServiceConfiguration.configurations.upsertAsync(
