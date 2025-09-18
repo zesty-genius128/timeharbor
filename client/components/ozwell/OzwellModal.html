@@ -28,7 +28,7 @@
       </div>
 
       <!-- Ozwell iframe Container -->
-      <div class="h-full overflow-hidden">
+      <div class="h-full overflow-hidden flex flex-col">
         {{#if ozwellLoadingSession}}
         <div class="flex items-center justify-center h-full">
           <div class="text-center">
@@ -38,9 +38,16 @@
         </div>
         {{else}}
         {{#if ozwellSessionUrl}}
-        <iframe id="ozwellIframe" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
-          title="Ozwell AI Writing Assistant">
-        </iframe>
+        <div class="flex-1 relative">
+          <iframe id="ozwellIframe" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
+            title="Ozwell AI Writing Assistant">
+          </iframe>
+        </div>
+        <!-- Modal Action Buttons -->
+        <div class="flex justify-end gap-2 p-4 border-t border-base-300 bg-base-100 sticky bottom-0 z-20">
+          <button id="ozwellSaveClose" class="btn btn-success">Save &amp; Close</button>
+          <button id="ozwellCancel" class="btn btn-outline">Cancel</button>
+        </div>
         {{else}}
         <div class="flex items-center justify-center h-full">
           <div class="text-center">
@@ -82,7 +89,7 @@
     </div>
 
     <!-- Ozwell iframe Container -->
-    <div class="h-full overflow-hidden pb-16">
+    <div class="h-full overflow-hidden flex flex-col pb-16">
       {{#if ozwellLoadingSession}}
       <div class="flex items-center justify-center h-full">
         <div class="text-center">
@@ -92,9 +99,16 @@
       </div>
       {{else}}
       {{#if ozwellSessionUrl}}
-      <iframe id="ozwellIframeSidecar" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
-        title="Ozwell AI Writing Assistant">
-      </iframe>
+      <div class="flex-1 relative">
+        <iframe id="ozwellIframeSidecar" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
+          title="Ozwell AI Writing Assistant">
+        </iframe>
+      </div>
+      <!-- Sidecar Action Buttons -->
+      <div class="flex justify-end gap-2 p-4 border-t border-base-300 bg-base-100 sticky bottom-0 z-20">
+        <button id="ozwellSaveCloseSidecar" class="btn btn-success btn-sm">Save &amp; Close</button>
+        <button id="ozwellCancelSidecar" class="btn btn-outline btn-sm">Cancel</button>
+      </div>
       {{else}}
       <div class="flex items-center justify-center h-full">
         <div class="text-center">

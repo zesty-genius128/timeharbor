@@ -282,22 +282,9 @@ export const ozwellMethods = {
       throw new Meteor.Error('ozwell-not-setup', 'Please configure Ozwell in Settings first');
     }
 
-    // Check if we already have a session for this project
-    const sessionId = `timeharbor-project-${teamId}-session`;
-    let existingSession = await OzwellConversations.findOneAsync({
-      sessionId: sessionId,
-      userId: this.userId
-    });
-
-    if (existingSession && existingSession.sessionUrl) {
-      console.log('Reusing existing project session:', sessionId);
-      return {
-        success: true,
-        sessionUrl: existingSession.sessionUrl,
-        sessionId: sessionId,
-        isReused: true
-      };
-    }
+    // Always create a new session for every modal launch
+    const sessionId = `timeharbor-project-${teamId}-session-${Date.now()}`;
+    let existingSession = null;
 
     try {
       // Create new session
@@ -311,7 +298,7 @@ export const ozwellMethods = {
           userId: ozwellUserId,
           metaData: {
             createListenSession: true,
-            forceNewSession: false, // Allow reuse within same project
+            forceNewSession: true, // Always create a new session for modal launches
             embedType: 'iframe-basic',
             projectId: teamId,
             platform: 'timeharbor'
@@ -323,31 +310,20 @@ export const ozwellMethods = {
         const sessionData = await response.json();
         console.log('Created new project session:', sessionData.loginUrl);
 
-        // Store session info
-        if (existingSession) {
-          await OzwellConversations.updateAsync(existingSession._id, {
-            $set: {
-              sessionUrl: sessionData.loginUrl,
-              loginToken: sessionData.loginToken,
-              lastActivity: new Date(),
-              ozwellSessionData: sessionData
-            }
-          });
-        } else {
-          await OzwellConversations.insertAsync({
-            sessionId: sessionId,
-            userId: this.userId,
-            teamId: teamId,
-            sessionUrl: sessionData.loginUrl,
-            loginToken: sessionData.loginToken,
-            workspaceId: ozwellWorkspaceId,
-            ozwellUserId: ozwellUserId,
-            createdAt: new Date(),
-            lastActivity: new Date(),
-            ozwellSessionData: sessionData,
-            messages: []
-          });
-        }
+        // Store session info (always insert new session)
+        await OzwellConversations.insertAsync({
+          sessionId: sessionId,
+          userId: this.userId,
+          teamId: teamId,
+          sessionUrl: sessionData.loginUrl,
+          loginToken: sessionData.loginToken,
+          workspaceId: ozwellWorkspaceId,
+          ozwellUserId: ozwellUserId,
+          createdAt: new Date(),
+          lastActivity: new Date(),
+          ozwellSessionData: sessionData,
+          messages: []
+        });
 
         return {
           success: true,
