@@ -1,3 +1,25 @@
+// Listen for autofill postMessage from Ozwell iframe (top-level, not inside any event block)
+window.addEventListener('message', (event) => {
+  if (
+    event.data &&
+    event.data.channel === 'iframe-basic' &&
+    event.data.message === 'autofill' &&
+    typeof event.data.data?.text === 'string'
+  ) {
+    // Autofill the input box with the provided text
+    const inputTarget = ozwellState.currentInputTarget.get();
+    if (inputTarget) {
+      const inputElement = document.querySelector(inputTarget);
+      if (inputElement) {
+        inputElement.value = event.data.data.text;
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    // Optionally close the modal after autofill
+    OzwellHelper.close();
+  }
+});
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
 import { OzwellConversations } from '../../../collections.js';
@@ -856,6 +878,21 @@ Template.ozwellSidecar.helpers({
 
 // Modal Events
 Template.ozwellModal.events({
+  'click #ozwellSaveClose'(event) {
+    // Send postMessage to iframe to trigger save
+    const iframe = document.getElementById('ozwellIframe');
+    if (iframe) {
+      iframe.contentWindow.postMessage({
+        channel: 'iframe-basic',
+        message: 'saveAndClose'
+      }, '*');
+    }
+    OzwellHelper.close();
+  },
+
+  'click #ozwellCancel'(event) {
+    OzwellHelper.close();
+  },
   'click #ozwellClose'() {
     OzwellHelper.close();
   },
@@ -874,6 +911,21 @@ Template.ozwellModal.events({
 
 // Sidecar Events
 Template.ozwellSidecar.events({
+  'click #ozwellSaveCloseSidecar'(event) {
+    // Send postMessage to sidecar iframe to trigger save
+    const iframe = document.getElementById('ozwellIframeSidecar');
+    if (iframe) {
+      iframe.contentWindow.postMessage({
+        channel: 'iframe-basic',
+        message: 'saveAndClose'
+      }, '*');
+    }
+    OzwellHelper.close();
+  },
+
+  'click #ozwellCancelSidecar'(event) {
+    OzwellHelper.close();
+  },
   'click #ozwellCloseSidecar'() {
     OzwellHelper.close();
   },
