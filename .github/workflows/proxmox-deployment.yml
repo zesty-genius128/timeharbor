@@ -32,7 +32,14 @@ jobs:
                 github_pat: ${{ secrets.RUNNER_PAT }}
                 http_port: 3000
                 install_command: npm install
-                start_command: meteor run --port 0.0.0.0:3000 --allow-superuser
+                start_command: |
+                  export ROOT_URL=https://mieweb-timeharbor-auth.opensource.mieweb.org
+                  export GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+                  export GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+                  export HUB_CLIENT_ID=${{ secrets.HUB_CLIENT_ID }}
+                  export HUB_CLIENT_SECRET=${{ secrets.HUB_CLIENT_SECRET }}
+                  export METEOR_ALLOW_SUPERUSER=true
+                  meteor run --port 0.0.0.0:3000 --allow-superuser
                 runtime_language: nodejs
                 services: '["meteor"]'
 
