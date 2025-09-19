@@ -271,6 +271,51 @@ Template.ozwellModal.onCreated(function () {
         });
     };
 
+    // Paste from clipboard and save
+    this.pasteAndSave = async function () {
+        try {
+            // Try to read from clipboard
+            const clipboardText = await navigator.clipboard.readText();
+
+            if (clipboardText && clipboardText.trim().length > 0) {
+                // Validate clipboard content - check if it looks like console logs or browser stuff
+                const lowerClipboard = clipboardText.toLowerCase();
+                const isConsoleLog = lowerClipboard.includes('console') ||
+                    lowerClipboard.includes('hmr:') ||
+                    lowerClipboard.includes('.js?hash=') ||
+                    lowerClipboard.includes('ozwellbutton.js') ||
+                    lowerClipboard.includes('ozwellmodal.js') ||
+                    lowerClipboard.includes('meteor_js_resource') ||
+                    clipboardText.includes('@') && clipboardText.includes(':');
+
+                if (isConsoleLog) {
+                    alert('❌ It looks like you copied console logs instead of Ozwell content.\n\n✅ Please:\n1. Click inside the Ozwell chat area above\n2. Select the AI-generated text (not the console)\n3. Copy it (Ctrl+C or Cmd+C)\n4. Click "Paste and Save" again');
+                    return;
+                }
+
+                // Store the clipboard content
+                template.generatedContent.set(clipboardText.trim());
+                console.log('Content from clipboard:', clipboardText.substring(0, 100) + '...');
+
+                // Perform autofill with clipboard content
+                template.performAutofill();
+            } else {
+                // If no clipboard content, prompt user to manually copy
+                alert('📋 No content found in clipboard.\n\n✅ Please:\n1. Click inside the Ozwell chat area above\n2. Select the AI-generated text\n3. Copy it (Ctrl+C or Cmd+C)\n4. Click "Paste and Save" again');
+            }
+        } catch (err) {
+            console.log('Clipboard access not available:', err);
+            // Fallback: prompt user with manual input
+            const manualContent = prompt('Clipboard access is restricted.\n\nPlease copy the content from Ozwell above and paste it here:');
+            if (manualContent && manualContent.trim().length > 0) {
+                template.generatedContent.set(manualContent.trim());
+                template.performAutofill();
+            } else {
+                alert('No content provided. Please copy the text from Ozwell and try again.');
+            }
+        }
+    };
+
     // Close Ozwell modal
     this.closeOzwell = function (save = false) {
         if (save) {
@@ -538,6 +583,10 @@ Template.ozwellModal.events({
 
     'click #ozwell-save'(event, template) {
         template.closeOzwell(true);
+    },
+
+    'click #ozwell-paste-save'(event, template) {
+        template.pasteAndSave();
     },
 
     'click .prompt-btn'(event, template) {
