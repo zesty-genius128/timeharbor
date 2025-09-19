@@ -19,6 +19,7 @@ Template.ozwellModal.onCreated(function () {
     this.currentTeamId = new ReactiveVar(null);
     this.sessionReady = new ReactiveVar(false);
     this.generatedContent = new ReactiveVar(null); // Store content from Ozwell
+    this.capturedContent = new ReactiveVar(null); // Store captured AI content from postMessage
 
     // Store reference to this template instance globally for access from other components
     window.ozwellModalInstance = this;
@@ -208,6 +209,24 @@ Template.ozwellModal.onCreated(function () {
                 // Session is rendered and ready
                 template.sessionReady.set(true);
                 template.canSave.set(true);
+            } else if (data.type === 'ai-response' || data.type === 'message' || data.message) {
+                // Capture AI-generated content from various message formats
+                let content = null;
+
+                if (data.content) {
+                    content = data.content;
+                } else if (data.text) {
+                    content = data.text;
+                } else if (data.message && typeof data.message === 'string') {
+                    content = data.message;
+                } else if (data.response) {
+                    content = data.response;
+                }
+
+                if (content && typeof content === 'string' && content.trim().length > 10) {
+                    console.log('Captured AI response:', content);
+                    template.capturedContent.set(content);
+                }
             } else if (data.type === 'ozwell-ready') {
                 template.sessionReady.set(true);
 
@@ -296,6 +315,23 @@ Template.ozwellModal.onCreated(function () {
                 template.generatedContent.set(data.message);
                 template.canSave.set(true);
                 console.log('Received generic message:', data.message.substring(0, 100) + '...');
+            } else if (data.channel === 'iframe-basic' && data.message === 'sessionRendered') {
+                // Session is ready, try to extract content after a delay
+                template.canSave.set(true);
+                setTimeout(() => {
+                    template.extractContentFromIframe();
+                }, 3000);
+            } else if (data.type && (data.type.includes('conversation') || data.type.includes('chat'))) {
+                // Handle conversation data
+                if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+                    const lastMessage = data.messages[data.messages.length - 1];
+                    if (lastMessage.content || lastMessage.text || lastMessage.message) {
+                        const content = lastMessage.content || lastMessage.text || lastMessage.message;
+                        template.generatedContent.set(content);
+                        template.canSave.set(true);
+                        console.log('Received conversation content:', content.substring(0, 100) + '...');
+                    }
+                }
             }
 
             // Enhanced content monitoring for real autofill
@@ -341,9 +377,165 @@ Template.ozwellModal.onCreated(function () {
                     template.canSave.set(true);
                 }, 3000);
             }
+
+            // FINAL CATCH-ALL: Try to extract content from any unhandled message
+            if (!template.capturedContent.get() && data) {
+                // Look for any text content in the entire data object
+                const searchForContent = (obj, depth = 0) => {
+                    if (depth > 3) return null; // Prevent deep recursion
+
+                    if (typeof obj === 'string' && obj.length > 30 &&
+                        !obj.includes('sessionRendered') &&
+                        !obj.includes('ready') &&
+                        !obj.includes('http') &&
+                        !obj.includes('iframe')) {
+                        return obj;
+                    }
+
+                    if (obj && typeof obj === 'object') {
+                        for (const key in obj) {
+                            if (key === 'content' || key === 'text' || key === 'message' || key === 'response') {
+                                const value = obj[key];
+                                if (typeof value === 'string' && value.length > 30) {
+                                    return value;
+                                }
+                            }
+
+                            const found = searchForContent(obj[key], depth + 1);
+                            if (found) return found;
+                        }
+                    }
+
+                    return null;
+                };
+
+                const foundContent = searchForContent(data);
+                if (foundContent) {
+                    console.log('Catch-all found content:', foundContent.substring(0, 100) + '...');
+                    template.capturedContent.set(foundContent);
+                }
+            }
         };
 
         window.addEventListener('message', template.messageHandler);
+    };
+
+    // Extract content from iframe when postMessage doesn't work
+    this.extractContentFromIframe = function () {
+        const iframe = document.querySelector('#ozwell-iframe');
+        if (!iframe || !iframe.contentWindow) return;
+
+        console.log('Attempting to extract content from iframe...');
+
+        // Try multiple postMessage approaches first
+        const contentRequests = [
+            { type: 'get-conversation' },
+            { type: 'get-current-content' },
+            { type: 'export-content' },
+            { type: 'get-last-message' },
+            { type: 'get-chat-history' },
+            { channel: 'iframe-basic', message: 'getMessages' },
+            { channel: 'IframeSync', type: 'getContent' },
+            { action: 'getChatHistory' },
+            { action: 'getLastResponse' },
+            { command: 'export' }
+        ];
+
+        contentRequests.forEach((request, index) => {
+            setTimeout(() => {
+                iframe.contentWindow.postMessage(request, 'https://ai.bluehive.com');
+            }, index * 100);
+        });
+
+        // After trying postMessage, attempt DOM extraction
+        setTimeout(() => {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                if (!iframeDoc) {
+                    console.log('Cannot access iframe document (CORS)');
+                    return;
+                }
+
+                // Look for chat messages with more comprehensive selectors
+                const messageSelectors = [
+                    '[data-testid*="message"]',
+                    '[class*="message"]',
+                    '[class*="chat"]',
+                    '[class*="response"]',
+                    '[class*="content"]',
+                    '.message-content',
+                    '.chat-message',
+                    '.response-text',
+                    '.message-text',
+                    '.ai-response',
+                    '.assistant-message',
+                    '[role="log"] > div:last-child',
+                    '[role="log"] [class*="message"]:last-child',
+                    '.conversation [class*="message"]:last-child',
+                    'div[data-message-id]',
+                    '.prose',
+                    'article',
+                    'main [class*="text"]'
+                ];
+
+                let extractedContent = '';
+
+                for (const selector of messageSelectors) {
+                    try {
+                        const elements = iframeDoc.querySelectorAll(selector);
+                        if (elements.length > 0) {
+                            const lastElement = elements[elements.length - 1];
+                            const text = lastElement.textContent || lastElement.innerText;
+
+                            if (text && text.trim().length > 20 &&
+                                !text.toLowerCase().includes('type a message') &&
+                                !text.toLowerCase().includes('send') &&
+                                !text.toLowerCase().includes('loading') &&
+                                !text.toLowerCase().includes('connecting')) {
+
+                                extractedContent = text.trim();
+                                console.log(`Content extracted using selector "${selector}":`, extractedContent.substring(0, 150) + '...');
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        // Skip selector if it fails
+                    }
+                }
+
+                // If still no content, try to find any meaningful text
+                if (!extractedContent) {
+                    const allText = iframeDoc.body ? (iframeDoc.body.textContent || iframeDoc.body.innerText) : '';
+                    const lines = allText.split('\n')
+                        .map(line => line.trim())
+                        .filter(line =>
+                            line.length > 30 &&
+                            !line.toLowerCase().includes('type a message') &&
+                            !line.toLowerCase().includes('ozwell') &&
+                            !line.toLowerCase().includes('send') &&
+                            !line.toLowerCase().includes('cancel') &&
+                            !line.toLowerCase().includes('loading') &&
+                            !line.toLowerCase().includes('connecting') &&
+                            !line.toLowerCase().includes('powered by')
+                        );
+
+                    if (lines.length > 0) {
+                        extractedContent = lines[lines.length - 1];
+                        console.log('Content extracted from body text:', extractedContent.substring(0, 150) + '...');
+                    }
+                }
+
+                if (extractedContent) {
+                    template.generatedContent.set(extractedContent);
+                    console.log('Successfully extracted content from iframe');
+                } else {
+                    console.log('No meaningful content found in iframe');
+                }
+
+            } catch (e) {
+                console.log('Cannot access iframe content due to CORS:', e.message);
+            }
+        }, 1000);
     };
 
     // Initialize Ozwell session
@@ -423,116 +615,31 @@ Template.ozwellModal.onCreated(function () {
     // Close Ozwell modal
     this.closeOzwell = function (save = false) {
         if (save) {
-            // First check if we already have content from postMessage monitoring
-            let existingContent = template.generatedContent.get();
-            if (existingContent && existingContent.trim().length > 0) {
-                console.log('Using already captured content:', existingContent.substring(0, 100) + '...');
+            // First try to use captured content from postMessage
+            let capturedContent = template.capturedContent.get();
+
+            if (capturedContent && capturedContent.trim().length > 10) {
+                console.log('Using captured content from postMessage:', capturedContent.substring(0, 100) + '...');
+                template.generatedContent.set(capturedContent);
                 template.performAutofill();
-                return;
-            }
-
-            // Try to get content from Ozwell iframe
-            const iframe = document.querySelector('#ozwell-iframe');
-            if (iframe && iframe.contentWindow && template.sessionReady.get()) {
-
-                console.log('Attempting intelligent content extraction from Ozwell...');
-
-                // Try different postMessage requests that Ozwell might respond to
-                const contentRequests = [
-                    { type: 'get-conversation' },
-                    { type: 'get-current-content' },
-                    { type: 'export-content' },
-                    { type: 'get-last-message' },
-                    { channel: 'iframe-basic', message: 'getMessages' },
-                    { channel: 'IframeSync', type: 'getContent' },
-                    { type: 'export-conversation' },
-                    { type: 'get-chat-history' }
-                ];
-
-                contentRequests.forEach((request, index) => {
-                    setTimeout(() => {
-                        iframe.contentWindow.postMessage(request, 'https://ai.bluehive.com');
-                    }, index * 150);
-                });
-
-                // Give time for responses and then attempt content extraction
-                setTimeout(() => {
-                    // If we still don't have content, try to access iframe DOM directly
-                    let extractedContent = template.generatedContent.get();
-
-                    if (!extractedContent || extractedContent.trim().length === 0) {
-                        try {
-                            // Try to access iframe content directly
-                            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
-                            // Try multiple selectors to find content
-                            const selectors = [
-                                '.message-content',
-                                '.chat-message',
-                                '.response-text',
-                                '.message-text',
-                                '.content',
-                                '[data-message]',
-                                '.message:last-child',
-                                '.chat-content .message:last-child',
-                                'p:last-child',
-                                'div[role="textbox"]',
-                                '.ql-editor',
-                                '.text-content'
-                            ];
-
-                            for (const selector of selectors) {
-                                const elements = iframeDoc.querySelectorAll(selector);
-                                if (elements.length > 0) {
-                                    const lastElement = elements[elements.length - 1];
-                                    const content = lastElement.textContent || lastElement.innerText;
-                                    if (content && content.trim().length > 10 && !content.includes('Type a message')) {
-                                        extractedContent = content.trim();
-                                        console.log(`Content extracted using selector ${selector}:`, extractedContent.substring(0, 100) + '...');
-                                        break;
-                                    }
-                                }
-                            }
-
-                            // If still no good content, try to get all text from the iframe
-                            if (!extractedContent || extractedContent.trim().length === 0) {
-                                const allText = iframeDoc.body.textContent || iframeDoc.body.innerText;
-                                // Look for meaningful content (not UI text)
-                                const lines = allText.split('\n').map(line => line.trim()).filter(line =>
-                                    line.length > 20 &&
-                                    !line.includes('Type a message') &&
-                                    !line.includes('Ozwell AI') &&
-                                    !line.includes('Send') &&
-                                    !line.includes('Cancel') &&
-                                    !line.toLowerCase().includes('loading') &&
-                                    !line.toLowerCase().includes('connecting')
-                                );
-
-                                if (lines.length > 0) {
-                                    extractedContent = lines[lines.length - 1]; // Get the last meaningful line
-                                    console.log('Content extracted from body text:', extractedContent.substring(0, 100) + '...');
-                                }
-                            }
-
-                        } catch (e) {
-                            console.log('Cannot access iframe content directly (CORS):', e);
-                            // This is expected due to CORS restrictions
-                        }
-                    }
-
-                    if (extractedContent && extractedContent.trim().length > 0) {
-                        template.generatedContent.set(extractedContent);
-                    }
-
-                    template.performAutofill();
-                }, 1500);
-
-                // Don't close immediately if we're saving - wait for autofill
-                return;
             } else {
-                // If no iframe or not ready, try to use any stored content
-                template.performAutofill();
+                // Fallback: try iframe extraction
+                template.extractContentFromIframe();
+
+                // Wait a moment for extraction then proceed with autofill
+                setTimeout(() => {
+                    let existingContent = template.generatedContent.get();
+                    if (existingContent && existingContent.trim().length > 0) {
+                        console.log('Using extracted content:', existingContent.substring(0, 100) + '...');
+                        template.performAutofill();
+                    } else {
+                        console.log('No content captured, using fallback message');
+                        template.generatedContent.set('[No AI content found - please try copying manually]');
+                        template.performAutofill();
+                    }
+                }, 1000);
             }
+            return;
         }
 
         template.closeModal();
