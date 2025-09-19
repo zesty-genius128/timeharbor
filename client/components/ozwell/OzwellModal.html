@@ -92,9 +92,7 @@
                 <div class="text-sm text-base-content/70 mb-3 text-center p-2 bg-info/10 rounded">
                     <strong>To save content:</strong><br>
                     1. Select the AI response text in the chat above<br>
-                    2. Copy it (Ctrl+C or Cmd+C)<br>
-                    3. Click "Paste and Save"
-                    4. Autofill feature coming soon
+                    2. Copy it (Ctrl+C or Cmd+C) and click "Paste and Save"
                 </div>
                 {{/if}}
 
@@ -109,13 +107,10 @@
                     <div class="flex gap-2">
                         <button id="ozwell-cancel" class="btn btn-sm btn-outline">Cancel</button>
                         {{#if ozwellSessionUrl}}
-                        <button id="ozwell-paste-save" class="btn btn-sm btn-info">
+                        <button id="ozwell-paste-save" class="btn btn-sm btn-primary">
                             Paste and Save
                         </button>
                         {{/if}}
-                        <button id="ozwell-save" class="btn btn-sm btn-primary {{saveButtonClass}}">
-                            Auto Save
-                        </button>
                     </div>
                 </div>
             </div>

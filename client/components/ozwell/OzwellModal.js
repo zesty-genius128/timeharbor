@@ -615,37 +615,14 @@ Template.ozwellModal.onCreated(function () {
     // Close Ozwell modal
     this.closeOzwell = function (save = false) {
         if (save) {
-            // First try to use captured content from postMessage
-            let capturedContent = template.capturedContent.get();
-
-            if (capturedContent && capturedContent.trim().length > 10) {
-                console.log('Using captured content from postMessage:', capturedContent.substring(0, 100) + '...');
-                template.generatedContent.set(capturedContent);
-                template.performAutofill();
-            } else {
-                // Fallback: try iframe extraction
-                template.extractContentFromIframe();
-
-                // Wait a moment for extraction then proceed with autofill
-                setTimeout(() => {
-                    let existingContent = template.generatedContent.get();
-                    if (existingContent && existingContent.trim().length > 0) {
-                        console.log('Using extracted content:', existingContent.substring(0, 100) + '...');
-                        template.performAutofill();
-                    } else {
-                        console.log('No content captured, using fallback message');
-                        template.generatedContent.set('[No AI content found - please try copying manually]');
-                        template.performAutofill();
-                    }
-                }, 1000);
-            }
+            // Simple approach: just immediately check clipboard for content
+            console.log('Auto Save clicked - checking clipboard immediately...');
+            template.pasteAndSave();
             return;
         }
 
         template.closeModal();
-    };
-
-    // Perform the actual autofill
+    };    // Perform the actual autofill
     this.performAutofill = function () {
         let content = template.generatedContent.get();
         const inputElement = template.currentInputElement.get();
