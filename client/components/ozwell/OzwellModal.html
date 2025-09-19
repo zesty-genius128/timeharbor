@@ -90,29 +90,30 @@
                 {{#if ozwellSessionUrl}}
                 <!-- Instructions for user -->
                 <div class="text-sm text-base-content/70 mb-3 text-center p-2 bg-info/10 rounded">
-                    💡 <strong>To save content:</strong><br>
+                    <strong>To save content:</strong><br>
                     1. Select the AI response text in the chat above<br>
                     2. Copy it (Ctrl+C or Cmd+C)<br>
                     3. Click "Paste and Save"
+                    4. Autofill feature coming soon
                 </div>
                 {{/if}}
 
                 <div class="flex items-center justify-between">
                     <div class="text-sm text-base-content/70">
                         {{#if selectedPrompt}}
-                        Using prompt: {{selectedPrompt.title}}
+                        Using: {{selectedPrompt.title}} for {{../teamName}}
                         {{else}}
-                        Select a prompt to get started
+                        Select a time tracking prompt to get started
                         {{/if}}
                     </div>
                     <div class="flex gap-2">
                         <button id="ozwell-cancel" class="btn btn-sm btn-outline">Cancel</button>
                         {{#if ozwellSessionUrl}}
-                        <button id="ozwell-paste-save" class="btn btn-sm btn-primary">
+                        <button id="ozwell-paste-save" class="btn btn-sm btn-info">
                             Paste and Save
                         </button>
                         {{/if}}
-                        <button id="ozwell-save" class="btn btn-sm btn-secondary {{saveButtonClass}}">
+                        <button id="ozwell-save" class="btn btn-sm btn-primary {{saveButtonClass}}">
                             Auto Save
                         </button>
                     </div>

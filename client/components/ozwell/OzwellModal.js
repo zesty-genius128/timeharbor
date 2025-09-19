@@ -42,13 +42,39 @@ Template.ozwellModal.onCreated(function () {
                 this.availablePrompts.set(prompts);
             } else {
                 console.error('Failed to load Ozwell prompts:', err);
-                // Fallback to basic prompts
+                // Fallback to time tracking specific prompts
                 this.availablePrompts.set([
                     {
-                        id: 'custom',
-                        title: 'Help me write',
-                        description: 'Get general writing assistance',
-                        icon: 'pencil'
+                        id: 'ticket-title',
+                        title: 'Write ticket title',
+                        description: 'Create a clear, concise ticket title',
+                        icon: 'pencil',
+                        template: 'Based on this work: "{{currentText}}" in project "{{teamName}}", create a professional ticket title that clearly describes what was accomplished. Make it concise and specific.',
+                        systemMessage: 'You are a project management assistant. Create clear, professional ticket titles for time tracking entries.'
+                    },
+                    {
+                        id: 'ticket-description',
+                        title: 'Write ticket description',
+                        description: 'Generate detailed work description',
+                        icon: 'chart-bar',
+                        template: 'Project: {{teamName}}\nCurrent work notes: "{{currentText}}"\nRecent activity: {{recentActivitySummary}}\n\nPlease write a detailed ticket description that explains what was accomplished, including technical details and business value. Format it professionally.',
+                        systemMessage: 'You are a technical documentation assistant. Write clear, detailed descriptions of development work for time tracking and project management.'
+                    },
+                    {
+                        id: 'daily-summary',
+                        title: 'Daily work summary',
+                        description: 'Summarize daily progress',
+                        icon: 'clock',
+                        template: 'Project: {{teamName}}\nToday\'s work: "{{currentText}}"\nTime spent: {{totalTimeToday}}\nRecent tickets: {{recentActivitySummary}}\n\nCreate a professional daily summary of work accomplished, highlighting key achievements and progress made.',
+                        systemMessage: 'You are a productivity assistant. Create concise daily work summaries for time tracking and reporting.'
+                    },
+                    {
+                        id: 'status-update',
+                        title: 'Project status update',
+                        description: 'Generate project status report',
+                        icon: 'link',
+                        template: 'Project: {{teamName}}\nCurrent progress: "{{currentText}}"\nRecent work: {{recentActivitySummary}}\nTotal time invested: {{totalProjectTime}}\n\nGenerate a professional status update for stakeholders, highlighting progress, current state, and next steps.',
+                        systemMessage: 'You are a project communication specialist. Create clear status updates for stakeholders and team members.'
                     }
                 ]);
             }
@@ -108,31 +134,72 @@ Template.ozwellModal.onCreated(function () {
                 const iframe = document.querySelector('#ozwell-iframe');
                 if (iframe && iframe.contentWindow) {
                     const selectedPrompt = template.selectedPrompt.get();
+
+                    // Process template variables
+                    let promptText = selectedPrompt?.template || selectedPrompt?.title || prompt.template || prompt.title;
+                    if (promptText && context) {
+                        promptText = promptText
+                            .replace(/\{\{teamName\}\}/g, context.teamName || 'Current Team')
+                            .replace(/\{\{currentText\}\}/g, context.currentText || '')
+                            .replace(/\{\{recentActivitySummary\}\}/g, context.recentActivitySummary || 'No recent activity')
+                            .replace(/\{\{totalTimeToday\}\}/g, context.projectStats?.formattedTimeToday || '0m')
+                            .replace(/\{\{totalProjectTime\}\}/g, context.projectStats?.formattedProjectTime || '0m');
+                    }
+
+                    // Rich MCP context with project data
                     const contextData = {
                         type: 'mcp-context',
+                        protocol: 'model-context-protocol',
+                        version: '1.0',
                         context: {
-                            teamName: context.teamName || 'Current Team',
-                            currentText: context.currentText || '',
-                            prompt: selectedPrompt?.template || selectedPrompt?.title || prompt.template || prompt.title,
-                            systemMessage: selectedPrompt?.systemMessage || prompt.systemMessage || 'You are a helpful writing assistant.',
-                            projectType: 'Time Tracking Application',
-                            instructions: selectedPrompt?.description || 'Help the user improve their content.',
-                            ...context
+                            // Core project info
+                            project: {
+                                name: context.teamName || 'Current Team',
+                                type: 'Time Tracking Application',
+                                id: context.teamId
+                            },
+
+                            // User context
+                            user: context.user || {},
+
+                            // Current work context
+                            currentWork: {
+                                text: context.currentText || '',
+                                ticket: context.currentTicket,
+                                inputType: 'ticket_description'
+                            },
+
+                            // Project statistics and history
+                            projectStats: context.projectStats || {},
+                            recentActivity: context.recentActivity || [],
+
+                            // AI prompt configuration
+                            prompt: {
+                                id: selectedPrompt?.id,
+                                title: selectedPrompt?.title,
+                                template: promptText,
+                                systemMessage: selectedPrompt?.systemMessage || 'You are a helpful assistant for time tracking and project management.',
+                                instructions: selectedPrompt?.description
+                            },
+
+                            // Application context
+                            application: {
+                                name: 'TimeHarbor',
+                                domain: 'time-tracking',
+                                capabilities: ['ticket-management', 'time-tracking', 'project-reporting']
+                            }
                         }
                     };
 
-                    console.log('Sending context to Ozwell:', contextData);
+                    console.log('Sending rich MCP context to Ozwell:', contextData);
                     iframe.contentWindow.postMessage(contextData, 'https://ai.bluehive.com');
 
-                    // Also send the prompt as initial message if available
-                    if (selectedPrompt?.template && context.currentText) {
+                    // Send the processed prompt as initial message
+                    if (promptText && promptText.length > 0) {
                         setTimeout(() => {
-                            const promptMessage = selectedPrompt.template.replace('{{currentText}}', context.currentText || '')
-                                .replace('{{teamName}}', context.teamName || 'Current Team');
-
                             iframe.contentWindow.postMessage({
                                 type: 'ozwell-send-message',
-                                message: promptMessage
+                                message: promptText
                             }, 'https://ai.bluehive.com');
                         }, 1000);
                     }
@@ -231,6 +298,43 @@ Template.ozwellModal.onCreated(function () {
                 console.log('Received generic message:', data.message.substring(0, 100) + '...');
             }
 
+            // Enhanced content monitoring for real autofill
+            // Monitor for any message that might contain AI-generated content
+            if (data.type === 'messageAdded' || data.type === 'messagesUpdated' || data.type === 'conversationUpdated') {
+                // Try to extract content from various data structures
+                let extractedContent = null;
+
+                if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+                    // Get the last message from the conversation
+                    const lastMessage = data.messages[data.messages.length - 1];
+                    if (lastMessage.role === 'assistant' && lastMessage.content) {
+                        extractedContent = lastMessage.content;
+                    }
+                } else if (data.message && data.message.content && data.message.role === 'assistant') {
+                    extractedContent = data.message.content;
+                } else if (data.content && typeof data.content === 'string') {
+                    extractedContent = data.content;
+                } else if (data.text && typeof data.text === 'string') {
+                    extractedContent = data.text;
+                }
+
+                if (extractedContent && extractedContent.length > 20) {
+                    template.generatedContent.set(extractedContent);
+                    template.canSave.set(true);
+                    console.log('Captured AI content automatically:', extractedContent.substring(0, 100) + '...');
+                }
+            }
+
+            // Also monitor for clipboard events if Ozwell sends them
+            if (data.type === 'clipboardUpdate' || data.type === 'textCopied') {
+                if (data.content || data.text) {
+                    const content = data.content || data.text;
+                    template.generatedContent.set(content);
+                    template.canSave.set(true);
+                    console.log('Content captured from clipboard event:', content.substring(0, 100) + '...');
+                }
+            }
+
             // For any message from Ozwell iframe, enable save button (fallback)
             if (!template.canSave.get() && template.sessionReady.get()) {
                 setTimeout(() => {
@@ -319,30 +423,39 @@ Template.ozwellModal.onCreated(function () {
     // Close Ozwell modal
     this.closeOzwell = function (save = false) {
         if (save) {
-            // Try multiple ways to get content from Ozwell
+            // First check if we already have content from postMessage monitoring
+            let existingContent = template.generatedContent.get();
+            if (existingContent && existingContent.trim().length > 0) {
+                console.log('Using already captured content:', existingContent.substring(0, 100) + '...');
+                template.performAutofill();
+                return;
+            }
+
+            // Try to get content from Ozwell iframe
             const iframe = document.querySelector('#ozwell-iframe');
             if (iframe && iframe.contentWindow && template.sessionReady.get()) {
 
-                // First, try to send specific postMessage requests to get content
-                console.log('Requesting content from Ozwell iframe...');
+                console.log('Attempting intelligent content extraction from Ozwell...');
 
                 // Try different postMessage requests that Ozwell might respond to
                 const contentRequests = [
+                    { type: 'get-conversation' },
                     { type: 'get-current-content' },
                     { type: 'export-content' },
-                    { channel: 'iframe-basic', message: 'getContent' },
-                    { channel: 'IframeSync', type: 'getContent' },
                     { type: 'get-last-message' },
-                    { type: 'export-conversation' }
+                    { channel: 'iframe-basic', message: 'getMessages' },
+                    { channel: 'IframeSync', type: 'getContent' },
+                    { type: 'export-conversation' },
+                    { type: 'get-chat-history' }
                 ];
 
                 contentRequests.forEach((request, index) => {
                     setTimeout(() => {
                         iframe.contentWindow.postMessage(request, 'https://ai.bluehive.com');
-                    }, index * 200);
+                    }, index * 150);
                 });
 
-                // Wait longer for responses and then try to extract content
+                // Give time for responses and then attempt content extraction
                 setTimeout(() => {
                     // If we still don't have content, try to access iframe DOM directly
                     let extractedContent = template.generatedContent.get();

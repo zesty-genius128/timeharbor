@@ -131,23 +131,49 @@ Template.tickets.onCreated(function () {
       { sort: { updatedAt: -1 }, limit: 5 }
     ).fetch();
 
+    // Calculate time summaries
+    const totalProjectTime = recentTickets.reduce((sum, ticket) => sum + (ticket.totalTime || 0), 0);
+    const totalTimeToday = recentTickets
+      .filter(ticket => {
+        const today = new Date();
+        const ticketDate = new Date(ticket.updatedAt || ticket.createdAt);
+        return ticketDate.toDateString() === today.toDateString();
+      })
+      .reduce((sum, ticket) => sum + (ticket.totalTime || 0), 0);
+
+    // Create rich activity summary
+    const recentActivitySummary = recentTickets.length > 0
+      ? recentTickets.map(ticket => `• ${ticket.title} (${Math.round((ticket.totalTime || 0) / 60)}min)`).join('\n')
+      : 'No recent activity';
+
     return {
       teamId,
       teamName: team?.name || 'Unknown Project',
       user: {
-        username: Meteor.user()?.username || 'Unknown User'
+        username: Meteor.user()?.username || 'Unknown User',
+        email: Meteor.user()?.emails?.[0]?.address || ''
       },
       currentTicket: activeTicket ? {
         title: activeTicket.title,
         description: activeTicket.github || '',
         status: 'active',
-        totalTime: activeTicket.totalTime || 0
+        totalTime: activeTicket.totalTime || 0,
+        formattedTime: `${Math.floor((activeTicket.totalTime || 0) / 3600)}h ${Math.floor(((activeTicket.totalTime || 0) % 3600) / 60)}m`
       } : null,
+      projectStats: {
+        totalTickets: recentTickets.length,
+        totalProjectTime: Math.round(totalProjectTime / 60), // in minutes
+        totalTimeToday: Math.round(totalTimeToday / 60), // in minutes
+        formattedProjectTime: `${Math.floor(totalProjectTime / 3600)}h ${Math.floor((totalProjectTime % 3600) / 60)}m`,
+        formattedTimeToday: `${Math.floor(totalTimeToday / 3600)}h ${Math.floor((totalTimeToday % 3600) / 60)}m`
+      },
+      recentActivitySummary,
       recentActivity: recentTickets.map(ticket => ({
         title: ticket.title,
         description: ticket.github || '',
         totalTime: ticket.totalTime || 0,
-        lastUpdated: ticket.updatedAt || ticket.createdAt
+        lastUpdated: ticket.updatedAt || ticket.createdAt,
+        formattedTime: `${Math.round((ticket.totalTime || 0) / 60)}min`
       }))
     };
   };
