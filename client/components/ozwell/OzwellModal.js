@@ -585,7 +585,7 @@ Template.ozwellModal.onCreated(function () {
                     clipboardText.includes('@') && clipboardText.includes(':');
 
                 if (isConsoleLog) {
-                    alert('❌ It looks like you copied console logs instead of Ozwell content.\n\n✅ Please:\n1. Click inside the Ozwell chat area above\n2. Select the AI-generated text (not the console)\n3. Copy it (Ctrl+C or Cmd+C)\n4. Click "Paste and Save" again');
+                    alert('It looks like you copied console logs instead of Ozwell content.\n\nPlease:\n1. Click inside the Ozwell chat area above\n2. Select the AI-generated text (not the console)\n3. Copy it (Ctrl+C or Cmd+C)\n4. Click "Paste and Save" again');
                     return;
                 }
 
@@ -597,7 +597,7 @@ Template.ozwellModal.onCreated(function () {
                 template.performAutofill();
             } else {
                 // If no clipboard content, prompt user to manually copy
-                alert('📋 No content found in clipboard.\n\n✅ Please:\n1. Click inside the Ozwell chat area above\n2. Select the AI-generated text\n3. Copy it (Ctrl+C or Cmd+C)\n4. Click "Paste and Save" again');
+                alert('No content found in clipboard.\n\nPlease:\n1. Click inside the Ozwell chat area above\n2. Select the AI-generated text\n3. Copy it (Ctrl+C or Cmd+C)\n4. Click "Paste and Save" again');
             }
         } catch (err) {
             console.log('Clipboard access not available:', err);
