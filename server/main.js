@@ -11,6 +11,7 @@ import { clockEventMethods } from './methods/clockEvents.js';
 // Import Ozwell methods
 import { ozwellMethods } from './methods/ozwell.js';
 import { ozwellPromptMethods } from './methods/ozwellPrompts.js';
+import { referenceAssistantMethods } from './methods/referenceAssistant.js';
 Meteor.startup(async () => {
   // Code to run on server startup
   if (await Tickets.find().countAsync() === 0) {
@@ -184,6 +185,7 @@ Meteor.methods({
   ...clockEventMethods,
   ...ozwellMethods,
   ...ozwellPromptMethods,
+  ...referenceAssistantMethods,
 
   'participants.create'(name) {
     check(name, String);

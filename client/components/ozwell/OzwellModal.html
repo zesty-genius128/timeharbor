@@ -1,41 +1,89 @@
 <template name="ozwellModal">
     <div id="ozwell-modal" class="modal {{#if isOzwellOpen}}modal-open{{/if}}">
-        <div class="modal-box w-11/12 max-w-5xl h-5/6 p-0 relative">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between p-4 border-b bg-base-200">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path
-                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold">Ozwell AI Writing Assistant</h3>
-                        <p class="text-sm text-base-content/70">AI assistant ready (mock mode)</p>
-                    </div>
+        <div class="modal-box w-11/12 max-w-4xl h-[640px] p-0 flex flex-col overflow-hidden bg-base-100">
+            <div class="px-6 py-4 bg-gradient-to-r from-primary to-primary-focus text-white flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">Ozwell AI Assistant</h3>
+                    <p class="text-sm text-white/80">{{headerSubtitle}}</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    {{#if selectedPrompt}}
-                    <span class="badge badge-primary">{{selectedPrompt.title}}</span>
-                    {{/if}}
-                    <button id="ozwell-close" class="btn btn-sm btn-circle">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                <button id="ozwell-close" class="btn btn-sm btn-circle btn-ghost text-white">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            {{#if selectedPrompt}}
+            <div class="px-6 py-4 border-b border-base-200 bg-base-100">
+                <span class="text-xs uppercase tracking-wide text-base-content/60">Project Context</span>
+                <div class="mt-2 p-3 rounded-xl bg-base-200 text-sm whitespace-pre-line leading-relaxed overflow-y-auto max-h-32">
+                    {{contextSummary}}
                 </div>
             </div>
 
-            <!-- Prompt Selection (if no prompt selected) -->
-            {{#unless selectedPrompt}}
-            <div class="p-4 border-b bg-base-100">
-                <h4 class="font-medium mb-3">Choose how I can help you:</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-base-100">
+                {{#each messages}}
+                <div class="flex {{messageWrapperClass role}}">
+                    <div class="max-w-xl px-4 py-3 rounded-2xl shadow-sm {{messageBubbleClass role}}">
+                        <p class="text-sm whitespace-pre-line leading-relaxed">{{content}}</p>
+                    </div>
+                </div>
+                {{/each}}
+
+                {{#if showEmptyState}}
+                <div class="flex justify-center pt-10 text-base-content/60 text-sm">
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="loading loading-spinner loading-lg text-primary"></div>
+                        <p>Preparing your first draft…</p>
+                    </div>
+                </div>
+                {{/if}}
+
+                {{#if isGenerating}}
+                <div class="flex justify-start">
+                    <div class="max-w-xs px-4 py-3 rounded-2xl bg-base-200 text-sm flex items-center gap-2">
+                        <span class="loading loading-dots loading-sm"></span>
+                        <span>Generating response…</span>
+                    </div>
+                </div>
+                {{/if}}
+            </div>
+
+            {{#if errorMessage}}
+            <div class="px-6 pb-2 text-sm text-error">{{errorMessage}}</div>
+            {{/if}}
+
+            <div class="px-6 py-4 border-t border-base-200 bg-base-100">
+                <form id="ozwell-composer" class="space-y-3">
+                    <div class="relative">
+                        <textarea id="ozwell-message-input" class="textarea textarea-bordered w-full min-h-[110px] resize-none pr-14"
+                            placeholder="Ask for revisions or follow-up context…" disabled={{composerDisabled}}>{{composerText}}</textarea>
+                        <button type="submit" id="ozwell-send" class="btn btn-primary btn-circle absolute bottom-3 right-3"
+                            disabled={{sendDisabled}}>
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M2.01 21l20.99-9L2.01 3 2 10l15 2-15 2z" />
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="px-6 pb-6 pt-4 bg-base-100 border-t border-base-200 flex flex-wrap gap-3 justify-end">
+                <button id="ozwell-insert" class="btn btn-primary btn-sm" {{insertDisabled}}>Insert Suggestion</button>
+                <button id="ozwell-save-close" class="btn btn-neutral btn-sm" {{saveDisabled}}>Save &amp; Close</button>
+                <button id="ozwell-cancel" class="btn btn-outline btn-sm">Cancel</button>
+            </div>
+            {{else}}
+            <div class="p-6 space-y-5">
+                <div>
+                    <h4 class="text-lg font-semibold mb-2">How can Ozwell help?</h4>
+                    <p class="text-sm text-base-content/70">Pick a starter prompt to kick off the conversation.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {{#each availablePrompts}}
-                    <button class="prompt-btn btn btn-sm btn-outline justify-start gap-2" data-prompt-id="{{id}}">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <button class="prompt-btn btn btn-outline justify-start gap-3 text-left" data-prompt-id="{{id}}">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                             {{#if (eq icon 'clock')}}
                             <path
                                 d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.7L16.2,16.2Z" />
@@ -52,11 +100,14 @@
                                 d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M5,19V5H19V19H5Z" />
                             {{/if}}
                         </svg>
-                        {{title}}
+                        <div>
+                            <div class="font-medium text-sm">{{title}}</div>
+                            <div class="text-xs text-base-content/60">{{description}}</div>
+                        </div>
                     </button>
                     {{/each}}
                 </div>
-                <div class="mt-3">
+                <div>
                     <button id="use-custom-prompt" class="btn btn-sm btn-ghost">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -66,54 +117,7 @@
                     </button>
                 </div>
             </div>
-            {{/unless}}
-
-            <!-- Ozwell iframe -->
-            <div class="flex-1 relative" style="height: calc(100% - 120px);">
-                {{#if ozwellSessionUrl}}
-                <iframe id="ozwell-iframe" src="{{ozwellSessionUrl}}" class="w-full h-full border-0"
-                    allow="clipboard-write; microphone; camera" sandbox="allow-scripts allow-same-origin allow-forms"
-                    onload="window.ozwellIframeLoaded && window.ozwellIframeLoaded()">
-                </iframe>
-                {{else}}
-                <div class="flex items-center justify-center h-full">
-                    <div class="text-center">
-                        <div class="loading loading-spinner loading-lg mb-4"></div>
-                        <p class="text-base-content/70">Initializing Ozwell session...</p>
-                    </div>
-                </div>
-                {{/if}}
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="flex flex-col p-4 border-t bg-base-200">
-                {{#if ozwellSessionUrl}}
-                <!-- Instructions for user -->
-                <div class="text-sm text-base-content/70 mb-3 text-center p-2 bg-info/10 rounded">
-                    <strong>To save content:</strong><br>
-                    1. Select the AI response text in the chat above<br>
-                    2. Copy it (Ctrl+C or Cmd+C) and click "Paste and Save"
-                </div>
-                {{/if}}
-
-                <div class="flex items-center justify-between">
-                    <div class="text-sm text-base-content/70">
-                        {{#if selectedPrompt}}
-                        Using: {{selectedPrompt.title}} for {{../teamName}}
-                        {{else}}
-                        Select a time tracking prompt to get started
-                        {{/if}}
-                    </div>
-                    <div class="flex gap-2">
-                        <button id="ozwell-cancel" class="btn btn-sm btn-outline">Cancel</button>
-                        {{#if ozwellSessionUrl}}
-                        <button id="ozwell-paste-save" class="btn btn-sm btn-primary">
-                            Paste and Save
-                        </button>
-                        {{/if}}
-                    </div>
-                </div>
-            </div>
+            {{/if}}
         </div>
         <div class="modal-backdrop" id="ozwell-backdrop"></div>
     </div>

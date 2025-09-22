@@ -3,42 +3,55 @@ import { check } from 'meteor/check';
 import { OzwellWorkspaces, OzwellUsers, OzwellConversations, OzwellPrompts, Teams, Tickets, ClockEvents } from '../../collections.js';
 import axios from 'axios';
 
-const OZWELL_API_BASE = 'https://ai.bluehive.com/api/v1';
+const DEFAULT_REFERENCE_BASE_URL = 'http://localhost:3000/v1';
+const DEFAULT_REFERENCE_MODEL = 'llama3';
 
 export const ozwellMethods = {
     // Test Ozwell API credentials
-    async testOzwellCredentials(apiKey) {
+    async testOzwellCredentials({ apiKey, baseUrl, model }) {
         check(apiKey, String);
+        check(baseUrl, String);
+        check(model, String);
         if (!this.userId) throw new Meteor.Error('not-authorized');
 
         try {
-            const response = await axios.post(`${OZWELL_API_BASE}/test-credentials`, {}, {
+            const url = baseUrl.endsWith('/') ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+            await axios.post(url, {
+                model,
+                messages: [
+                    { role: 'system', content: 'You are a connection test assistant.' },
+                    { role: 'user', content: 'Reply with OK.' }
+                ],
+            }, {
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${apiKey}`,
+                },
+                timeout: 5000,
             });
 
-            return { success: true, message: response.data.message };
+            return { success: true };
         } catch (error) {
-            console.error('Ozwell credentials test failed:', error.response?.data);
-            throw new Meteor.Error('ozwell-error', 'Invalid API credentials');
+            console.error('Reference server credentials test failed:', error.response?.data || error.message);
+            throw new Meteor.Error('ozwell-error', 'Connection test failed. Check base URL, model, and API key.');
         }
     },
 
-    // Save user's Ozwell API key
-    async saveOzwellApiKey(apiKey) {
+    // Save user's Ozwell configuration
+    async saveOzwellConfiguration({ apiKey, baseUrl, model }) {
         check(apiKey, String);
+        check(baseUrl, String);
+        check(model, String);
         if (!this.userId) throw new Meteor.Error('not-authorized');
 
-        // First test the credentials
-        await ozwellMethods.testOzwellCredentials.call(this, apiKey);
+        await ozwellMethods.testOzwellCredentials.call(this, { apiKey, baseUrl, model });
 
-        // Save to user profile
         await Meteor.users.updateAsync(this.userId, {
             $set: {
                 'profile.ozwellApiKey': apiKey,
-                'profile.ozwellEnabled': true
+                'profile.ozwellBaseUrl': baseUrl,
+                'profile.ozwellModel': model,
+                'profile.ozwellEnabled': true,
             }
         });
 

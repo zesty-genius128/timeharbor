@@ -53,12 +53,30 @@
                     </span>
                 </label>
                 <input type="password" name="apiKey" placeholder="BHSK-sandbox-..."
-                    class="input input-bordered {{apiKeyInputClass}}" required />
+                    class="input input-bordered {{apiKeyInputClass}}" value="{{ozwellSettings.apiKey}}" required />
                 <label class="label">
                     <span class="label-text-alt text-base-content/70">
                         Your API key will be stored securely and used only for creating new sessions.
                     </span>
                 </label>
+            </div>
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Reference Server Base URL</span>
+                    <span class="label-text-alt">Defaults to <code>http://localhost:3000/v1</code></span>
+                </label>
+                <input type="url" name="baseUrl" placeholder="http://localhost:3000/v1"
+                    class="input input-bordered" value="{{ozwellSettings.baseUrl}}" />
+            </div>
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Model</span>
+                    <span class="label-text-alt">Defaults to <code>llama3</code></span>
+                </label>
+                <input type="text" name="model" placeholder="llama3"
+                    class="input input-bordered" value="{{ozwellSettings.model}}" />
             </div>
 
             <div class="flex gap-2">
