@@ -1,17 +1,22 @@
 <template name="ozwellModal">
     <div id="ozwell-modal" class="modal {{#if isOzwellOpen}}modal-open{{/if}}">
-        <div class="modal-box w-11/12 max-w-4xl h-[640px] p-0 flex flex-col overflow-hidden bg-base-100">
+        <div class="transition-all duration-200 {{#if layoutIsSidecar}}fixed right-0 top-0 bottom-0 w-full max-w-xl shadow-xl border-l border-base-300 z-40 bg-base-100 flex flex-col pointer-events-auto{{else}}modal-box w-11/12 max-w-4xl h-[640px] p-0 flex flex-col overflow-hidden bg-base-100{{/if}}">
             <div class="px-6 py-4 bg-gradient-to-r from-primary to-primary-focus text-white flex items-center justify-between">
                 <div>
                     <h3 class="text-lg font-semibold">Ozwell AI Assistant</h3>
                     <p class="text-sm text-white/80">{{headerSubtitle}}</p>
                 </div>
-                <button id="ozwell-close" class="btn btn-sm btn-circle btn-ghost text-white">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="ozwell-toggle-layout" class="btn btn-xs btn-ghost text-white">
+                        {{#if layoutIsSidecar}}Switch to Modal{{else}}Switch to Side Panel{{/if}}
+                    </button>
+                    <button id="ozwell-close" class="btn btn-sm btn-circle btn-ghost text-white">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             {{#if selectedPrompt}}
@@ -50,6 +55,21 @@
                 {{/if}}
             </div>
 
+            {{#if suggestionsAvailable}}
+            <div class="px-6 py-4 border-t border-base-200 bg-base-100">
+                <p class="text-sm font-medium mb-2">Pick a suggestion to insert:</p>
+                <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {{#each suggestions}}
+                    <label class="flex items-start gap-3 cursor-pointer rounded-lg border border-base-200 px-3 py-2 hover:border-primary">
+                        <input type="radio" name="ozwell-suggestion" class="radio radio-sm mt-1"
+                            value="{{index}}" {{checked index}} />
+                        <span class="text-sm whitespace-pre-line leading-relaxed">{{text}}</span>
+                    </label>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+
             {{#if errorMessage}}
             <div class="px-6 pb-2 text-sm text-error">{{errorMessage}}</div>
             {{/if}}
@@ -80,10 +100,12 @@
                     <h4 class="text-lg font-semibold mb-2">How can Ozwell help?</h4>
                     <p class="text-sm text-base-content/70">Pick a starter prompt to kick off the conversation.</p>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="grid gap-3 grid-cols-1 lg:grid-cols-2">
                     {{#each availablePrompts}}
-                    <button class="prompt-btn btn btn-outline justify-start gap-3 text-left" data-prompt-id="{{id}}">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <button class="prompt-btn group flex items-start gap-3 rounded-xl border border-base-300 px-4 py-3 hover:bg-base-200 transition text-left"
+                        data-prompt-id="{{id}}">
+                        <span class="mt-1">
+                            <svg class="w-5 h-5 text-base-content/70 group-hover:text-primary" fill="currentColor" viewBox="0 0 24 24">
                             {{#if (eq icon 'clock')}}
                             <path
                                 d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.7L16.2,16.2Z" />
@@ -99,10 +121,11 @@
                             <path
                                 d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M5,19V5H19V19H5Z" />
                             {{/if}}
-                        </svg>
-                        <div>
-                            <div class="font-medium text-sm">{{title}}</div>
-                            <div class="text-xs text-base-content/60">{{description}}</div>
+                            </svg>
+                        </span>
+                        <div class="flex-1">
+                            <div class="font-medium text-sm text-base-content group-hover:text-primary">{{title}}</div>
+                            <div class="text-xs text-base-content/60 leading-relaxed overflow-hidden">{{description}}</div>
                         </div>
                     </button>
                     {{/each}}
@@ -119,6 +142,8 @@
             </div>
             {{/if}}
         </div>
+        {{#unless layoutIsSidecar}}
         <div class="modal-backdrop" id="ozwell-backdrop"></div>
+        {{/unless}}
     </div>
 </template>

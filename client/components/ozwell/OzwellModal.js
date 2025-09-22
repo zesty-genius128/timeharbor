@@ -59,6 +59,9 @@ Template.ozwellModal.onCreated(function () {
     template.isGenerating = new ReactiveVar(false);
     template.errorMessage = new ReactiveVar(null);
     template.headerSubtitle = new ReactiveVar('Ready to help with your work.');
+    template.suggestions = new ReactiveVar([]);
+    template.selectedSuggestionIndex = new ReactiveVar(0);
+    template.layoutMode = new ReactiveVar('modal'); // modal | sidecar
 
     // Expose template instance for global access
     window.ozwellModalInstance = template;
@@ -126,6 +129,24 @@ Template.ozwellModal.onCreated(function () {
         template.messages.set([...history, { ...message, createdAt: new Date() }]);
     };
 
+    const extractSuggestions = (text = '') => {
+        if (!text) return [];
+        let parts = text.split(/\n\s*\n+/).map((part) => part.trim()).filter(Boolean);
+
+        if (parts.length <= 1) {
+            const bulletParts = text.split(/(?:^|\n)\s*(?:[-*•]|\d+\.)\s+/).map((part) => part.trim()).filter(Boolean);
+            if (bulletParts.length > 1) {
+                parts = bulletParts;
+            }
+        }
+
+        if (parts.length <= 1) {
+            return [];
+        }
+
+        return parts;
+    };
+
     const buildServerMessages = () => {
         const messages = [];
         const system = template.systemMessage.get();
@@ -167,6 +188,8 @@ Template.ozwellModal.onCreated(function () {
         template.canSave.set(false);
         template.isGenerating.set(false);
         template.errorMessage.set(null);
+        template.suggestions.set([]);
+        template.selectedSuggestionIndex.set(0);
     };
 
     template.performAutofill = function ({ closeModal = true } = {}) {
@@ -208,6 +231,7 @@ Template.ozwellModal.onCreated(function () {
         template.currentContext.set(null);
         template.currentTeamId.set(null);
         template.headerSubtitle.set('Ready to help with your work.');
+        template.layoutMode.set('modal');
     };
 
     template.loadPrompts = function () {
@@ -234,6 +258,7 @@ Template.ozwellModal.onCreated(function () {
         template.currentTeamId.set(context.teamId || null);
         template.headerSubtitle.set(context.teamName ? `Project: ${context.teamName}` : 'Ready to help with your work.');
         template.isOzwellOpen.set(true);
+        template.layoutMode.set('modal');
     };
 
     template.initializeConversation = async function (prompt) {
@@ -267,6 +292,9 @@ Template.ozwellModal.onCreated(function () {
         template.isGenerating.set(true);
         template.canSave.set(false);
         template.errorMessage.set(null);
+        template.suggestions.set([]);
+        template.selectedSuggestionIndex.set(0);
+        template.generatedContent.set(null);
 
         const metadata = {
             teamId: template.currentTeamId.get(),
@@ -283,7 +311,17 @@ Template.ozwellModal.onCreated(function () {
             const assistantContent = result?.content;
             if (assistantContent) {
                 addMessage({ role: 'assistant', content: assistantContent });
-                template.generatedContent.set(assistantContent.trim());
+                const suggestions = extractSuggestions(assistantContent.trim());
+                if (suggestions.length > 0) {
+                    template.suggestions.set(suggestions);
+                    template.selectedSuggestionIndex.set(0);
+                    template.generatedContent.set(suggestions[0]);
+                } else {
+                    template.suggestions.set([]);
+                    template.selectedSuggestionIndex.set(0);
+                    template.generatedContent.set(assistantContent.trim());
+                }
+
                 template.canSave.set(true);
             } else {
                 template.errorMessage.set('The assistant returned no content. Please try again.');
@@ -312,6 +350,9 @@ Template.ozwellModal.helpers({
     messages() {
         return Template.instance().messages.get();
     },
+    layoutIsSidecar() {
+        return Template.instance().layoutMode.get() === 'sidecar';
+    },
     composerText() {
         return Template.instance().composerText.get();
     },
@@ -336,6 +377,13 @@ Template.ozwellModal.helpers({
         const instance = Template.instance();
         return instance.messages.get().length === 0 && instance.isGenerating.get();
     },
+    suggestions() {
+        const instance = Template.instance();
+        return instance.suggestions.get().map((text, index) => ({ text, index }));
+    },
+    suggestionsAvailable() {
+        return Template.instance().suggestions.get().length > 1;
+    },
     messageWrapperClass(role) {
         return role === 'user' ? 'justify-end' : 'justify-start';
     },
@@ -357,12 +405,20 @@ Template.ozwellModal.helpers({
     },
     eq(a, b) {
         return a === b;
+    },
+    checked(index) {
+        return Template.instance().selectedSuggestionIndex.get() === index ? 'checked' : '';
     }
 });
 
 Template.ozwellModal.events({
     'click #ozwell-close'(event, template) {
         template.closeModal();
+    },
+    'click #ozwell-toggle-layout'(event, template) {
+        event.preventDefault();
+        const next = template.layoutMode.get() === 'sidecar' ? 'modal' : 'sidecar';
+        template.layoutMode.set(next);
     },
     'click #ozwell-backdrop'(event, template) {
         if (event.target.id === 'ozwell-backdrop') {
@@ -405,6 +461,16 @@ Template.ozwellModal.events({
     'input #ozwell-message-input'(event, template) {
         template.composerText.set(event.target.value);
     },
+    'keydown #ozwell-message-input'(event, template) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            if (template.isGenerating.get()) return;
+            const value = event.target.value;
+            template.sendChatMessage(value);
+            event.target.value = '';
+            template.composerText.set('');
+        }
+    },
     'click #ozwell-insert'(event, template) {
         event.preventDefault();
         if (template.canSave.get()) {
@@ -415,6 +481,15 @@ Template.ozwellModal.events({
         event.preventDefault();
         if (template.canSave.get()) {
             template.performAutofill({ closeModal: true });
+        }
+    },
+    'change input[name="ozwell-suggestion"]'(event, template) {
+        const index = Number(event.target.value);
+        const suggestions = template.suggestions.get();
+        if (!Number.isNaN(index) && suggestions[index]) {
+            template.selectedSuggestionIndex.set(index);
+            template.generatedContent.set(suggestions[index]);
+            template.canSave.set(true);
         }
     }
 });
