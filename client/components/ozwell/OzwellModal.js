@@ -62,6 +62,7 @@ Template.ozwellModal.onCreated(function () {
     template.suggestions = new ReactiveVar([]);
     template.selectedSuggestionIndex = new ReactiveVar(0);
     template.layoutMode = new ReactiveVar('modal'); // modal | sidecar
+    template.summaryVisible = new ReactiveVar(false);
 
     // Expose template instance for global access
     window.ozwellModalInstance = template;
@@ -121,6 +122,16 @@ Template.ozwellModal.onCreated(function () {
             summary.push(`Current input: ${context.currentText}`);
         }
 
+        if (context.relatedFields && typeof context.relatedFields === 'object') {
+            const relatedLines = Object.entries(context.relatedFields)
+                .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
+                .map(([key, value]) => `• ${key}: ${value}`);
+            if (relatedLines.length > 0) {
+                summary.push('Other form values:');
+                summary.push(...relatedLines);
+            }
+        }
+
         return summary.length > 0 ? summary.join('\n') : 'No additional project context provided.';
     };
 
@@ -129,31 +140,72 @@ Template.ozwellModal.onCreated(function () {
         template.messages.set([...history, { ...message, createdAt: new Date() }]);
     };
 
+    const stripQuotes = (value = '') => value.replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/g, '').trim();
+
     const extractSuggestions = (text = '') => {
         if (!text) return [];
-        let parts = text.split(/\n\s*\n+/).map((part) => part.trim()).filter(Boolean);
 
-        if (parts.length <= 1) {
-            const bulletParts = text.split(/(?:^|\n)\s*(?:[-*•]|\d+\.)\s+/).map((part) => part.trim()).filter(Boolean);
-            if (bulletParts.length > 1) {
-                parts = bulletParts;
+        const bulletRegex = /(?:^|\n)\s*(?:\d+\.|[-*•])\s+([\s\S]*?)(?=(?:\n\s*(?:\d+\.|[-*•])\s+)|$)/g;
+        const collectBullets = (source = '') => {
+            const results = [];
+            let match;
+            while ((match = bulletRegex.exec(source)) !== null) {
+                const suggestion = stripQuotes(match[1]);
+                if (suggestion) {
+                    results.push(suggestion);
+                }
             }
+            return results;
+        };
+
+        const bullets = collectBullets(text);
+        if (bullets.length > 0) {
+            return bullets;
         }
 
-        if (parts.length <= 1) {
-            return [];
+        const rawParagraphs = text.split(/\n\s*\n+/).map((part) => part.trim()).filter(Boolean);
+        const paragraphs = rawParagraphs.filter((part, index) => {
+            if (index === 0 && /:\s*$/.test(part)) {
+                return false;
+            }
+            if (index === rawParagraphs.length - 1 && part.toLowerCase().startsWith('feel free')) {
+                return false;
+            }
+            return true;
+        });
+
+        const expanded = [];
+        paragraphs.forEach((part) => {
+            const innerBullets = collectBullets(part);
+            if (innerBullets.length > 0) {
+                expanded.push(...innerBullets);
+            } else {
+                const stripped = stripQuotes(part);
+                if (stripped) {
+                    expanded.push(stripped);
+                }
+            }
+        });
+
+        const uniqueExpanded = expanded.filter((value, index, arr) => arr.indexOf(value) === index);
+
+        if (uniqueExpanded.length > 1) {
+            return uniqueExpanded;
         }
 
-        return parts;
+        return [];
     };
 
     const buildServerMessages = () => {
         const messages = [];
-        const system = template.systemMessage.get();
+        const baseSystemMessage = template.systemMessage.get();
         const summary = template.contextSummary.get();
 
-        if (system) {
-            messages.push({ role: 'system', content: system });
+        if (baseSystemMessage) {
+            messages.push({
+                role: 'system',
+                content: `${baseSystemMessage}\nInstructions: Provide only polished, ready-to-paste suggestions. Avoid Markdown, template placeholders, or meta commentary. If generating multiple options, return each as its own numbered bullet.`
+            });
         }
 
         if (summary) {
@@ -295,6 +347,7 @@ Template.ozwellModal.onCreated(function () {
         template.suggestions.set([]);
         template.selectedSuggestionIndex.set(0);
         template.generatedContent.set(null);
+        template.summaryVisible.set(false);
 
         const metadata = {
             teamId: template.currentTeamId.get(),
@@ -328,11 +381,11 @@ Template.ozwellModal.onCreated(function () {
             }
         } catch (error) {
             console.error('Failed to generate content from reference server:', error);
-            template.errorMessage.set(error?.reason || 'Failed to generate content. Please try again.');
-        } finally {
-            template.isGenerating.set(false);
-        }
-    };
+        template.errorMessage.set(error?.reason || 'Failed to generate content. Please try again.');
+    } finally {
+        template.isGenerating.set(false);
+    }
+};
 
     template.loadPrompts();
 });
@@ -352,6 +405,9 @@ Template.ozwellModal.helpers({
     },
     layoutIsSidecar() {
         return Template.instance().layoutMode.get() === 'sidecar';
+    },
+    summaryVisible() {
+        return Template.instance().summaryVisible.get();
     },
     composerText() {
         return Template.instance().composerText.get();
@@ -382,7 +438,11 @@ Template.ozwellModal.helpers({
         return instance.suggestions.get().map((text, index) => ({ text, index }));
     },
     suggestionsAvailable() {
-        return Template.instance().suggestions.get().length > 1;
+        return Template.instance().suggestions.get().length > 0;
+    },
+    suggestionMaxHeight() {
+        const instance = Template.instance();
+        return instance.layoutMode.get() === 'sidecar' ? '12rem' : '8rem';
     },
     messageWrapperClass(role) {
         return role === 'user' ? 'justify-end' : 'justify-start';
@@ -419,6 +479,10 @@ Template.ozwellModal.events({
         event.preventDefault();
         const next = template.layoutMode.get() === 'sidecar' ? 'modal' : 'sidecar';
         template.layoutMode.set(next);
+    },
+    'click #toggle-context'(event, template) {
+        event.preventDefault();
+        template.summaryVisible.set(!template.summaryVisible.get());
     },
     'click #ozwell-backdrop'(event, template) {
         if (event.target.id === 'ozwell-backdrop') {

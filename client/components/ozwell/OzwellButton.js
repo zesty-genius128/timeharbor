@@ -10,11 +10,21 @@ Template.ozwellButton.events({
 
         // Find the associated input element
         const button = event.currentTarget;
-        const container = button.closest('.input-group, .form-control, form, .card');
+        const immediateWrapper = button.closest('.relative, .input-group, .form-control');
         let inputElement = null;
 
-        // Look for text inputs, textareas in the same container
-        if (container) {
+        if (immediateWrapper) {
+            const candidateList = Array.from(immediateWrapper.children).filter((element) =>
+                element.matches('input[type="text"], textarea, [contenteditable="true"]')
+            );
+            if (candidateList.length > 0) {
+                inputElement = candidateList[0];
+            }
+        }
+
+        const container = !inputElement ? button.closest('.input-group, .form-control, form, .card') : null;
+
+        if (!inputElement && container) {
             inputElement = container.querySelector('input[type="text"], textarea, [contenteditable="true"]');
         }
 
@@ -30,6 +40,8 @@ Template.ozwellButton.events({
             alert('No text input found to assist with');
             return;
         }
+
+        const form = button.closest('form');
 
         // Get context from the current page - try multiple ways
         let context = {};
@@ -69,6 +81,20 @@ Template.ozwellButton.events({
 
         // Add current text from the input element
         context.currentText = inputElement.value || inputElement.textContent || '';
+        context.fieldName = inputElement.getAttribute('name') || inputElement.getAttribute('id') || 'unknown-field';
+
+        if (form) {
+            const relatedFields = {};
+            const formData = new FormData(form);
+            formData.forEach((value, key) => {
+                if (key !== context.fieldName && typeof value === 'string' && value.trim().length > 0) {
+                    relatedFields[key] = value;
+                }
+            });
+            if (Object.keys(relatedFields).length > 0) {
+                context.relatedFields = relatedFields;
+            }
+        }
 
         console.log('Opening Ozwell with context:', context);
 
