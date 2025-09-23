@@ -336,7 +336,15 @@ Template.ozwellModal.onCreated(function () {
         template.canSave.set(false);
         template.errorMessage.set(null);
         template.currentConversationId.set(null);
-        template.conversationLabel.set(prompt?.title || 'Conversation');
+        const promptTitle = prompt?.title || '';
+        const userPreview = userMessage.replace(/\s+/g, ' ').trim().substring(0, 60);
+        let conversationLabel = userPreview || promptTitle || 'Conversation';
+
+        if (promptTitle && userPreview && prompt?.id !== 'custom') {
+            conversationLabel = `${promptTitle} — ${userPreview}`.substring(0, 120);
+        }
+
+        template.conversationLabel.set(conversationLabel);
 
         if (prompt?.title) {
             template.headerSubtitle.set(prompt.title);
@@ -396,11 +404,11 @@ Template.ozwellModal.onCreated(function () {
             }
         } catch (error) {
             console.error('Failed to generate content from reference server:', error);
-            template.errorMessage.set(error?.reason || 'Failed to generate content. Please try again.');
-        } finally {
-            template.isGenerating.set(false);
-        }
-    };
+        template.errorMessage.set(error?.reason || 'Failed to generate content. Please try again.');
+    } finally {
+        template.isGenerating.set(false);
+    }
+};
 
     template.loadRecentConversations = function () {
         const teamId = template.currentTeamId.get();
