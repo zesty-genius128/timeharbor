@@ -19,18 +19,14 @@
   </div>
   {{#if showCreateTicketForm}}
   <form id="createTicketForm" class="card bg-base-100 shadow p-4 mb-4 flex flex-col gap-2">
-    <div class="relative">
+    <div class="flex items-center gap-3">
       <input type="text" name="title" placeholder="Activity Title (e.g., 'Math Homework', 'Robot Assembly')"
-        class="input input-bordered pr-12" required />
-      <div class="absolute right-2 top-1/2 -translate-y-1/2">
-        {{> ozwellButton}}
-      </div>
+        class="input input-bordered" required />
+      {{> ozwellButton}}
     </div>
-    <div class="relative">
-      <input type="text" name="github" placeholder="Reference Link or Notes" class="input input-bordered pr-12" />
-      <div class="absolute right-2 top-1/2 -translate-y-1/2">
-        {{> ozwellButton}}
-      </div>
+    <div class="flex items-center gap-3">
+      <input type="text" name="github" placeholder="Reference Link or Notes" class="input input-bordered" />
+      {{> ozwellButton}}
     </div>
     <div class="flex gap-2">
       <input type="number" name="hours" min="0" placeholder="Hours" class="input input-bordered w-24" />
