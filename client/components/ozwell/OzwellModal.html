@@ -27,7 +27,7 @@
             <div class="px-6 py-2 border-b border-base-200 bg-base-100 flex flex-wrap gap-2">
                 {{#each recentConversations}}
                 <button class="resume-conversation btn btn-xs {{#if isCurrentConversation _id}}btn-primary text-primary-content{{else}}btn-outline{{/if}} max-w-full"
-                    data-id="{{_id}}" title="{{formatConversationTimestamp updatedAt}}">
+                    data-id="{{_id}}" title="{{formatConversationTimestamp updatedAt label}}">
                     <span class="text-xs font-medium truncate max-w-[10rem]">{{label}}</span>
                 </button>
                 {{/each}}

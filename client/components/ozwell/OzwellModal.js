@@ -600,10 +600,14 @@ Template.ozwellModal.helpers({
     isCurrentConversation(conversationId) {
         return Template.instance().currentConversationId.get() === conversationId;
     },
-    formatConversationTimestamp(timestamp) {
-        if (!timestamp) return '';
+    formatConversationTimestamp(timestamp, label) {
+        if (!timestamp) return label || '';
         const date = new Date(timestamp);
-        return date.toLocaleString();
+        const formatted = date.toLocaleString();
+        if (!label) {
+            return formatted;
+        }
+        return `${formatted}\n${label}`;
     }
 });
 
