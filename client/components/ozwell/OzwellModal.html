@@ -1,7 +1,7 @@
 <template name="ozwellModal">
     <div id="ozwell-modal" class="modal {{#if isOzwellOpen}}modal-open{{/if}}">
         <div class="transition-all duration-200 {{#if layoutIsSidecar}}fixed right-0 top-0 bottom-0 w-full max-w-xl shadow-xl border-l border-base-300 z-40 bg-base-100 flex flex-col pointer-events-auto{{else}}modal-box w-11/12 max-w-4xl h-[640px] p-0 flex flex-col overflow-hidden bg-base-100{{/if}}">
-            <div class="px-6 py-4 bg-gradient-to-r from-primary to-primary-focus text-white flex items-center justify-between">
+            <div class="px-6 py-4 bg-primary text-white flex items-center justify-between">
                 <div>
                     <h3 class="text-lg font-semibold">Ozwell AI Assistant</h3>
                     <p class="text-sm text-white/80">{{headerSubtitle}}</p>
