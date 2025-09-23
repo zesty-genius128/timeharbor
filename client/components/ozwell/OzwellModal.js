@@ -63,6 +63,10 @@ Template.ozwellModal.onCreated(function () {
     template.selectedSuggestionIndex = new ReactiveVar(0);
     template.layoutMode = new ReactiveVar('modal'); // modal | sidecar
     template.summaryVisible = new ReactiveVar(false);
+    template.recentConversations = new ReactiveVar([]);
+    template.currentConversationId = new ReactiveVar(null);
+    template.conversationLabel = new ReactiveVar('');
+    template.currentFieldName = new ReactiveVar('general');
 
     // Expose template instance for global access
     window.ozwellModalInstance = template;
@@ -242,6 +246,9 @@ Template.ozwellModal.onCreated(function () {
         template.errorMessage.set(null);
         template.suggestions.set([]);
         template.selectedSuggestionIndex.set(0);
+        template.summaryVisible.set(false);
+        template.currentConversationId.set(null);
+        template.conversationLabel.set('');
     };
 
     template.performAutofill = function ({ closeModal = true } = {}) {
@@ -308,9 +315,11 @@ Template.ozwellModal.onCreated(function () {
         template.currentInputElement.set(inputElement);
         template.currentContext.set(context);
         template.currentTeamId.set(context.teamId || null);
+        template.currentFieldName.set(context.fieldName || 'general');
         template.headerSubtitle.set(context.teamName ? `Project: ${context.teamName}` : 'Ready to help with your work.');
         template.isOzwellOpen.set(true);
         template.layoutMode.set('modal');
+        template.loadRecentConversations();
     };
 
     template.initializeConversation = async function (prompt) {
@@ -326,6 +335,8 @@ Template.ozwellModal.onCreated(function () {
         template.generatedContent.set(null);
         template.canSave.set(false);
         template.errorMessage.set(null);
+        template.currentConversationId.set(null);
+        template.conversationLabel.set(prompt?.title || 'Conversation');
 
         if (prompt?.title) {
             template.headerSubtitle.set(prompt.title);
@@ -348,6 +359,9 @@ Template.ozwellModal.onCreated(function () {
         template.selectedSuggestionIndex.set(0);
         template.generatedContent.set(null);
         template.summaryVisible.set(false);
+        if (!template.conversationLabel.get()) {
+            template.conversationLabel.set(trimmed.substring(0, 60));
+        }
 
         const metadata = {
             teamId: template.currentTeamId.get(),
@@ -376,16 +390,116 @@ Template.ozwellModal.onCreated(function () {
                 }
 
                 template.canSave.set(true);
+                template.persistConversation();
             } else {
                 template.errorMessage.set('The assistant returned no content. Please try again.');
             }
         } catch (error) {
             console.error('Failed to generate content from reference server:', error);
-        template.errorMessage.set(error?.reason || 'Failed to generate content. Please try again.');
-    } finally {
-        template.isGenerating.set(false);
-    }
-};
+            template.errorMessage.set(error?.reason || 'Failed to generate content. Please try again.');
+        } finally {
+            template.isGenerating.set(false);
+        }
+    };
+
+    template.loadRecentConversations = function () {
+        const teamId = template.currentTeamId.get();
+        const fieldName = template.currentFieldName.get();
+        if (!teamId) {
+            template.recentConversations.set([]);
+            return;
+        }
+
+        Meteor.call('getOzwellConversations', { teamId, fieldName, limit: 5 }, (err, conversations) => {
+            if (err) {
+                console.error('Failed to load Ozwell conversations:', err);
+                template.recentConversations.set([]);
+            } else {
+                template.recentConversations.set(conversations || []);
+            }
+        });
+    };
+
+    template.resumeConversation = function (conversationId) {
+        Meteor.call('getOzwellConversation', conversationId, (err, conversation) => {
+            if (err || !conversation) {
+                console.error('Failed to load conversation:', err);
+                return;
+            }
+
+            template.systemMessage.set(conversation.metadata?.systemMessage || DEFAULT_SYSTEM_MESSAGE);
+            template.messages.set(conversation.messages || []);
+            template.generatedContent.set(null);
+            template.suggestions.set([]);
+            template.selectedSuggestionIndex.set(0);
+            template.contextSummary.set(buildContextSummary(template.currentContext.get() || {}));
+            template.canSave.set(conversation.messages?.some(msg => msg.role === 'assistant') || false);
+            template.currentConversationId.set(conversation._id);
+            template.conversationLabel.set(conversation.label || conversation.metadata?.promptTitle || 'Conversation');
+            template.summaryVisible.set(false);
+
+            const promptMeta = conversation.metadata?.promptTitle ? {
+                id: conversation.metadata?.promptId || 'existing',
+                title: conversation.metadata?.promptTitle,
+                systemMessage: conversation.metadata?.systemMessage || DEFAULT_SYSTEM_MESSAGE
+            } : template.selectedPrompt.get();
+
+            template.selectedPrompt.set(promptMeta || {
+                id: 'existing',
+                title: conversation.label || 'Previous Conversation',
+                systemMessage: conversation.metadata?.systemMessage || DEFAULT_SYSTEM_MESSAGE
+            });
+        });
+    };
+
+    template.persistConversation = function () {
+        const teamId = template.currentTeamId.get();
+        const fieldName = template.currentFieldName.get();
+        if (!teamId || !fieldName) return;
+
+        const messages = template.messages.get();
+        if (!messages || messages.length === 0) return;
+
+        let label = template.conversationLabel.get();
+        if (!label) {
+            const firstUserMessage = messages.find(msg => msg.role === 'user');
+            if (firstUserMessage?.content) {
+                label = firstUserMessage.content.substring(0, 120);
+                template.conversationLabel.set(label);
+            } else {
+                label = 'Conversation';
+            }
+        }
+
+        const payload = {
+            conversationId: template.currentConversationId.get(),
+            teamId,
+            fieldName,
+            messages,
+            metadata: {
+                promptId: template.selectedPrompt.get()?.id,
+                promptTitle: template.selectedPrompt.get()?.title,
+                systemMessage: template.systemMessage.get()
+            },
+            label
+        };
+
+        if (!payload.conversationId) {
+            delete payload.conversationId;
+        }
+
+        Meteor.call('saveOzwellConversation', payload, (err, savedId) => {
+            if (err) {
+                console.error('Failed to save conversation:', err);
+                return;
+            }
+
+            if (savedId) {
+                template.currentConversationId.set(savedId);
+                template.loadRecentConversations();
+            }
+        });
+    };
 
     template.loadPrompts();
 });
@@ -408,6 +522,12 @@ Template.ozwellModal.helpers({
     },
     summaryVisible() {
         return Template.instance().summaryVisible.get();
+    },
+    recentConversations() {
+        return Template.instance().recentConversations.get();
+    },
+    hasRecentConversations() {
+        return Template.instance().recentConversations.get().length > 0;
     },
     composerText() {
         return Template.instance().composerText.get();
@@ -468,6 +588,14 @@ Template.ozwellModal.helpers({
     },
     checked(index) {
         return Template.instance().selectedSuggestionIndex.get() === index ? 'checked' : '';
+    },
+    isCurrentConversation(conversationId) {
+        return Template.instance().currentConversationId.get() === conversationId;
+    },
+    formatConversationTimestamp(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        return date.toLocaleString();
     }
 });
 
@@ -483,6 +611,19 @@ Template.ozwellModal.events({
     'click #toggle-context'(event, template) {
         event.preventDefault();
         template.summaryVisible.set(!template.summaryVisible.get());
+    },
+    'click .resume-conversation'(event, template) {
+        event.preventDefault();
+        const conversationId = event.currentTarget.getAttribute('data-id');
+        if (conversationId) {
+            template.resumeConversation(conversationId);
+        }
+    },
+    'click #ozwell-new-chat'(event, template) {
+        event.preventDefault();
+        template.resetConversation();
+        template.selectedPrompt.set(null);
+        template.loadRecentConversations();
     },
     'click #ozwell-backdrop'(event, template) {
         if (event.target.id === 'ozwell-backdrop') {

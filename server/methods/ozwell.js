@@ -1,5 +1,5 @@
 import { Meteor } from 'meteor/meteor';
-import { check } from 'meteor/check';
+import { check, Match } from 'meteor/check';
 import { OzwellWorkspaces, OzwellUsers, OzwellConversations, OzwellPrompts, Teams, Tickets, ClockEvents } from '../../collections.js';
 import axios from 'axios';
 
@@ -348,41 +348,112 @@ export const ozwellMethods = {
     },
 
     // Save conversation
-    async saveOzwellConversation(teamId, messages, metadata = {}) {
-        check(teamId, String);
-        check(messages, Array);
-        check(metadata, Object);
+    async saveOzwellConversation(conversation) {
+        check(conversation, Match.ObjectIncluding({
+            teamId: String,
+            fieldName: String,
+            messages: Array,
+            metadata: Match.Maybe(Object),
+            label: Match.Maybe(String),
+            conversationId: Match.Maybe(String)
+        }));
+        const {
+            conversationId = null,
+            teamId,
+            fieldName,
+            messages,
+            metadata = {},
+            label
+        } = conversation;
         if (!this.userId) throw new Meteor.Error('not-authorized');
 
         // Check team membership
         const team = await Teams.findOneAsync({ _id: teamId, members: this.userId });
         if (!team) throw new Meteor.Error('not-authorized', 'Not a team member');
 
-        const conversation = {
+        const sanitizedLabel = (label || metadata?.promptTitle || messages.find(msg => msg.role === 'user')?.content || 'Conversation')
+            .toString()
+            .substring(0, 120);
+
+        if (conversationId) {
+            const existing = await OzwellConversations.findOneAsync({
+                _id: conversationId,
+                teamId,
+                userId: this.userId
+            });
+
+            if (!existing) {
+                throw new Meteor.Error('not-found', 'Conversation not found');
+            }
+
+            await OzwellConversations.updateAsync(conversationId, {
+                $set: {
+                    messages,
+                    metadata,
+                    label: sanitizedLabel,
+                    updatedAt: new Date()
+                }
+            });
+
+            return conversationId;
+        }
+
+        const doc = {
             teamId,
+            fieldName,
             userId: this.userId,
             messages,
             metadata,
+            label: sanitizedLabel,
             createdAt: new Date(),
             updatedAt: new Date()
         };
 
-        return await OzwellConversations.insertAsync(conversation);
+        return await OzwellConversations.insertAsync(doc);
     },
 
-    // Get conversation history
-    async getOzwellConversations(teamId, limit = 10) {
+    // Get conversation history (metadata only)
+    async getOzwellConversations({ teamId, fieldName = null, limit = 10 }) {
         check(teamId, String);
         check(limit, Number);
+        check(fieldName, Match.Maybe(String));
         if (!this.userId) throw new Meteor.Error('not-authorized');
 
         // Check team membership
         const team = await Teams.findOneAsync({ _id: teamId, members: this.userId });
         if (!team) throw new Meteor.Error('not-authorized', 'Not a team member');
 
-        return await OzwellConversations.find(
-            { teamId, userId: this.userId },
-            { sort: { updatedAt: -1 }, limit }
-        ).fetchAsync();
+        const query = { teamId, userId: this.userId };
+        if (fieldName) {
+            query.fieldName = fieldName;
+        }
+
+        return await OzwellConversations.find(query, {
+            sort: { updatedAt: -1 },
+            limit,
+            fields: {
+                messages: 0
+            }
+        }).fetchAsync();
+    },
+
+    async getOzwellConversation(conversationId) {
+        check(conversationId, String);
+        if (!this.userId) throw new Meteor.Error('not-authorized');
+
+        const conversation = await OzwellConversations.findOneAsync({
+            _id: conversationId,
+            userId: this.userId
+        });
+
+        if (!conversation) {
+            throw new Meteor.Error('not-found', 'Conversation not found');
+        }
+
+        // Ensure user still belongs to the team
+        const team = await Teams.findOneAsync({ _id: conversation.teamId, members: this.userId });
+        if (!team) throw new Meteor.Error('not-authorized', 'Not a team member');
+
+        return conversation;
     }
 };
