@@ -7,6 +7,9 @@
                     <p class="text-sm text-white/80">{{headerSubtitle}}</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button id="ozwell-toggle-mode" class="btn btn-xs btn-ghost text-white">
+                        {{#if useMcpMode}}Use Native Chat{{else}}Use MCP Frame{{/if}}
+                    </button>
                     <button id="ozwell-toggle-layout" class="btn btn-xs btn-ghost text-white">
                         {{#if layoutIsSidecar}}Switch to Modal{{else}}Switch to Side Panel{{/if}}
                     </button>
@@ -19,6 +22,7 @@
                 </div>
             </div>
 
+            {{#unless useMcpMode}}
             {{#if hasRecentConversations}}
             <div class="px-6 py-3 border-b border-base-200 bg-base-100 flex items-center justify-between gap-3">
                 <span class="text-xs uppercase tracking-wide text-base-content/60">Recent chats</span>
@@ -174,6 +178,11 @@
                 </div>
             </div>
             {{/if}}
+            {{else}}
+            <div class="flex-1 bg-base-100">
+                <iframe id="ozwell-mcp-frame" src="/ozwell-frame" class="w-full h-full border-0"></iframe>
+            </div>
+            {{/unless}}
         </div>
         {{#unless layoutIsSidecar}}
         <div class="modal-backdrop" id="ozwell-backdrop"></div>

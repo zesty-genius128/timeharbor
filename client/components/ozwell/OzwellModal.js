@@ -67,6 +67,7 @@ Template.ozwellModal.onCreated(function () {
     template.currentConversationId = new ReactiveVar(null);
     template.conversationLabel = new ReactiveVar('');
     template.currentFieldName = new ReactiveVar('general');
+    template.useMcpMode = new ReactiveVar(false);
 
     // Expose template instance for global access
     window.ozwellModalInstance = template;
@@ -225,6 +226,21 @@ Template.ozwellModal.onCreated(function () {
         return messages;
     };
 
+    const buildMessagesForPrompt = (promptText) => {
+        const contextSummary = buildContextSummary(template.currentContext.get() || {});
+        const system = template.systemMessage.get() || DEFAULT_SYSTEM_MESSAGE;
+        const msgs = [];
+        msgs.push({
+            role: 'system',
+            content: `${system}\nInstructions: Provide only polished, ready-to-paste suggestions. Avoid Markdown, template placeholders, or meta commentary.`
+        });
+        if (contextSummary) {
+            msgs.push({ role: 'system', content: `Project context:\n${contextSummary}` });
+        }
+        msgs.push({ role: 'user', content: promptText });
+        return msgs;
+    };
+
     const callReferenceAssistant = (payload) => new Promise((resolve, reject) => {
         Meteor.call('callReferenceAssistant', payload, (error, result) => {
             if (error) {
@@ -249,6 +265,7 @@ Template.ozwellModal.onCreated(function () {
         template.summaryVisible.set(false);
         template.currentConversationId.set(null);
         template.conversationLabel.set('');
+        template.useMcpMode.set(false);
     };
 
     template.performAutofill = function ({ closeModal = true } = {}) {
@@ -291,6 +308,7 @@ Template.ozwellModal.onCreated(function () {
         template.currentTeamId.set(null);
         template.headerSubtitle.set('Ready to help with your work.');
         template.layoutMode.set('modal');
+        template.teardownMcpBridge();
     };
 
     template.loadPrompts = function () {
@@ -509,6 +527,69 @@ Template.ozwellModal.onCreated(function () {
         });
     };
 
+    template.setupMcpBridge = function () {
+        if (template.mcpListener) return;
+
+        template.mcpListener = function (event) {
+            const data = event.data;
+            if (!data || data.source !== 'ozwell-mcp-frame') return;
+
+            const iframe = document.getElementById('ozwell-mcp-frame');
+            if (!iframe || !iframe.contentWindow) return;
+
+            const reply = (message) => {
+                iframe.contentWindow.postMessage({ source: 'ozwell-modal-bridge', ...message }, '*');
+            };
+
+            if (data.type === 'client-hello') {
+                const summary = buildContextSummary(template.currentContext.get() || {});
+                reply({ type: 'mcp-ready', contextSummary: summary });
+                return;
+            }
+
+            if (data.type === 'model-request') {
+                const promptText = data.payload?.prompt || '';
+                if (!promptText) {
+                    reply({ type: 'model-error', error: 'Empty prompt' });
+                    return;
+                }
+
+                const messages = buildMessagesForPrompt(promptText);
+                const metadata = {
+                    teamId: template.currentTeamId.get(),
+                    promptId: template.selectedPrompt.get()?.id,
+                    transport: 'mcp-frame'
+                };
+
+                Meteor.call('callReferenceAssistant', { messages, metadata }, (err, result) => {
+                    if (err) {
+                        reply({ type: 'model-error', error: err.reason || err.message || 'Unknown error' });
+                    } else {
+                        reply({ type: 'model-response', payload: { content: result?.content || '' } });
+                    }
+                });
+            }
+        };
+
+        window.addEventListener('message', template.mcpListener);
+    };
+
+    template.teardownMcpBridge = function () {
+        if (template.mcpListener) {
+            window.removeEventListener('message', template.mcpListener);
+            template.mcpListener = null;
+        }
+    };
+
+    template.autorun(() => {
+        const useMcp = template.useMcpMode.get();
+        if (useMcp) {
+            template.setupMcpBridge();
+        } else {
+            template.teardownMcpBridge();
+        }
+    });
+
     template.loadPrompts();
 });
 
@@ -530,6 +611,9 @@ Template.ozwellModal.helpers({
     },
     summaryVisible() {
         return Template.instance().summaryVisible.get();
+    },
+    useMcpMode() {
+        return Template.instance().useMcpMode.get();
     },
     recentConversations() {
         return Template.instance().recentConversations.get();
@@ -619,6 +703,11 @@ Template.ozwellModal.events({
         event.preventDefault();
         const next = template.layoutMode.get() === 'sidecar' ? 'modal' : 'sidecar';
         template.layoutMode.set(next);
+    },
+    'click #ozwell-toggle-mode'(event, template) {
+        event.preventDefault();
+        const next = !template.useMcpMode.get();
+        template.useMcpMode.set(next);
     },
     'click #toggle-context'(event, template) {
         event.preventDefault();
