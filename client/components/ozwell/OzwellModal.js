@@ -5,6 +5,7 @@ import { Meteor } from 'meteor/meteor';
 import './OzwellModal.html';
 
 const DEFAULT_SYSTEM_MESSAGE = 'You are a helpful assistant for time tracking and project management.';
+const ENABLE_RECENT_CHATS = false;
 
 const FALLBACK_PROMPTS = [
     {
@@ -263,8 +264,10 @@ Template.ozwellModal.onCreated(function () {
         template.suggestions.set([]);
         template.selectedSuggestionIndex.set(0);
         template.summaryVisible.set(false);
-        template.currentConversationId.set(null);
-        template.conversationLabel.set('');
+        if (ENABLE_RECENT_CHATS) {
+            template.currentConversationId.set(null);
+            template.conversationLabel.set('');
+        }
         template.useMcpMode.set(false);
     };
 
@@ -337,7 +340,9 @@ Template.ozwellModal.onCreated(function () {
         template.headerSubtitle.set(context.teamName ? `Project: ${context.teamName}` : 'Ready to help with your work.');
         template.isOzwellOpen.set(true);
         template.layoutMode.set('modal');
-        template.loadRecentConversations();
+        if (ENABLE_RECENT_CHATS) {
+            template.loadRecentConversations();
+        }
     };
 
     template.initializeConversation = async function (prompt) {
@@ -353,16 +358,18 @@ Template.ozwellModal.onCreated(function () {
         template.generatedContent.set(null);
         template.canSave.set(false);
         template.errorMessage.set(null);
-        template.currentConversationId.set(null);
-        const promptTitle = prompt?.title || '';
-        const userPreview = userMessage.replace(/\s+/g, ' ').trim().substring(0, 60);
-        let conversationLabel = userPreview || promptTitle || 'Conversation';
+        if (ENABLE_RECENT_CHATS) {
+            template.currentConversationId.set(null);
+            const promptTitle = prompt?.title || '';
+            const userPreview = userMessage.replace(/\s+/g, ' ').trim().substring(0, 60);
+            let conversationLabel = userPreview || promptTitle || 'Conversation';
 
-        if (promptTitle && userPreview && prompt?.id !== 'custom') {
-            conversationLabel = `${promptTitle} — ${userPreview}`.substring(0, 120);
+            if (promptTitle && userPreview && prompt?.id !== 'custom') {
+                conversationLabel = `${promptTitle} — ${userPreview}`.substring(0, 120);
+            }
+
+            template.conversationLabel.set(conversationLabel);
         }
-
-        template.conversationLabel.set(conversationLabel);
 
         if (prompt?.title) {
             template.headerSubtitle.set(prompt.title);
@@ -385,7 +392,7 @@ Template.ozwellModal.onCreated(function () {
         template.selectedSuggestionIndex.set(0);
         template.generatedContent.set(null);
         template.summaryVisible.set(false);
-        if (!template.conversationLabel.get()) {
+        if (ENABLE_RECENT_CHATS && !template.conversationLabel.get()) {
             template.conversationLabel.set(trimmed.substring(0, 60));
         }
 
@@ -416,7 +423,9 @@ Template.ozwellModal.onCreated(function () {
                 }
 
                 template.canSave.set(true);
-                template.persistConversation();
+                if (ENABLE_RECENT_CHATS) {
+                    template.persistConversation();
+                }
             } else {
                 template.errorMessage.set('The assistant returned no content. Please try again.');
             }
@@ -429,6 +438,7 @@ Template.ozwellModal.onCreated(function () {
 };
 
     template.loadRecentConversations = function () {
+        if (!ENABLE_RECENT_CHATS) return;
         const teamId = template.currentTeamId.get();
         const fieldName = template.currentFieldName.get();
         if (!teamId) {
@@ -447,6 +457,7 @@ Template.ozwellModal.onCreated(function () {
     };
 
     template.resumeConversation = function (conversationId) {
+        if (!ENABLE_RECENT_CHATS) return;
         Meteor.call('getOzwellConversation', conversationId, (err, conversation) => {
             if (err || !conversation) {
                 console.error('Failed to load conversation:', err);
@@ -479,6 +490,7 @@ Template.ozwellModal.onCreated(function () {
     };
 
     template.persistConversation = function () {
+        if (!ENABLE_RECENT_CHATS) return;
         const teamId = template.currentTeamId.get();
         const fieldName = template.currentFieldName.get();
         if (!teamId || !fieldName) return;
@@ -616,10 +628,13 @@ Template.ozwellModal.helpers({
         return Template.instance().useMcpMode.get();
     },
     recentConversations() {
-        return Template.instance().recentConversations.get();
+        return ENABLE_RECENT_CHATS ? Template.instance().recentConversations.get() : [];
     },
     hasRecentConversations() {
-        return Template.instance().recentConversations.get().length > 0;
+        return ENABLE_RECENT_CHATS && Template.instance().recentConversations.get().length > 0;
+    },
+    recentsEnabled() {
+        return ENABLE_RECENT_CHATS;
     },
     composerText() {
         return Template.instance().composerText.get();
@@ -714,6 +729,7 @@ Template.ozwellModal.events({
         template.summaryVisible.set(!template.summaryVisible.get());
     },
     'click .resume-conversation'(event, template) {
+        if (!ENABLE_RECENT_CHATS) return;
         event.preventDefault();
         const conversationId = event.currentTarget.getAttribute('data-id');
         if (conversationId) {
@@ -721,6 +737,7 @@ Template.ozwellModal.events({
         }
     },
     'click #ozwell-new-chat'(event, template) {
+        if (!ENABLE_RECENT_CHATS) return;
         event.preventDefault();
         template.resetConversation();
         template.selectedPrompt.set(null);

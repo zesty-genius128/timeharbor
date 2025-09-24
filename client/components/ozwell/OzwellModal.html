@@ -22,26 +22,30 @@
                 </div>
             </div>
 
+            {{#if recentsEnabled}}
             {{#unless useMcpMode}}
-            {{#if hasRecentConversations}}
-            <div class="px-6 py-3 border-b border-base-200 bg-base-100 flex items-center justify-between gap-3">
-                <span class="text-xs uppercase tracking-wide text-base-content/60">Recent chats</span>
-                <button id="ozwell-new-chat" class="btn btn-xs btn-ghost">Start new chat</button>
-            </div>
-            <div class="px-6 py-2 border-b border-base-200 bg-base-100 flex flex-wrap gap-2">
-                {{#each recentConversations}}
-                <button class="resume-conversation btn btn-xs {{#if isCurrentConversation _id}}btn-primary text-primary-content{{else}}btn-outline{{/if}} max-w-full"
-                    data-id="{{_id}}" title="{{formatConversationTimestamp updatedAt label}}">
-                    <span class="text-xs font-medium truncate max-w-[10rem]">{{label}}</span>
-                </button>
-                {{/each}}
-            </div>
-            {{else}}
-            <div class="px-6 py-2 border-b border-base-200 bg-base-100">
-                <button id="ozwell-new-chat" class="btn btn-xs btn-ghost">Start new chat</button>
-            </div>
+                {{#if hasRecentConversations}}
+                <div class="px-6 py-3 border-b border-base-200 bg-base-100 flex items-center justify-between gap-3">
+                    <span class="text-xs uppercase tracking-wide text-base-content/60">Recent chats</span>
+                    <button id="ozwell-new-chat" class="btn btn-xs btn-ghost">Start new chat</button>
+                </div>
+                <div class="px-6 py-2 border-b border-base-200 bg-base-100 flex flex-wrap gap-2">
+                    {{#each recentConversations}}
+                    <button class="resume-conversation btn btn-xs {{#if isCurrentConversation _id}}btn-primary text-primary-content{{else}}btn-outline{{/if}} max-w-full"
+                        data-id="{{_id}}" title="{{formatConversationTimestamp updatedAt label}}">
+                        <span class="text-xs font-medium truncate max-w-[10rem]">{{label}}</span>
+                    </button>
+                    {{/each}}
+                </div>
+                {{else}}
+                <div class="px-6 py-2 border-b border-base-200 bg-base-100">
+                    <button id="ozwell-new-chat" class="btn btn-xs btn-ghost">Start new chat</button>
+                </div>
+                {{/if}}
+            {{/unless}}
             {{/if}}
 
+            {{#unless useMcpMode}}
             {{#if selectedPrompt}}
             <div class="px-6 py-3 border-b border-base-200 bg-base-100 flex items-start justify-between gap-3">
                 <div>
@@ -180,7 +184,7 @@
             {{/if}}
             {{else}}
             <div class="flex-1 bg-base-100">
-                <iframe id="ozwell-mcp-frame" src="/ozwell-frame" class="w-full h-full border-0"></iframe>
+                <iframe id="ozwell-mcp-frame" src="/ozwell-frame.html" class="w-full h-full border-0"></iframe>
             </div>
             {{/unless}}
         </div>
