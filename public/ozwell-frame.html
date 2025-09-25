@@ -83,6 +83,10 @@
     <button type="submit">Send</button>
   </form>
   <script>
+    // NOTE(uid_future-mcp): This frame intentionally mirrors the interface of Ozwell's iframe
+    // but it is not using the real MCP wire protocol. It simply sends a prompt to the parent
+    // and expects a minimal model-response payload back. Replace this when integrating with
+    // Ozwell's official MCP transport.
     const messagesEl = document.getElementById('messages');
     const formEl = document.getElementById('composer');
     const inputEl = document.getElementById('input');

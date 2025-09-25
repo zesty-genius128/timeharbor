@@ -68,7 +68,7 @@ Template.ozwellModal.onCreated(function () {
     template.currentConversationId = new ReactiveVar(null);
     template.conversationLabel = new ReactiveVar('');
     template.currentFieldName = new ReactiveVar('general');
-    template.useMcpMode = new ReactiveVar(false);
+    template.useMcpMode = new ReactiveVar(false); // NOTE(uid_future-mcp): MCP toggle currently drives a stub transport; see comments below.
 
     // Expose template instance for global access
     window.ozwellModalInstance = template;
@@ -539,25 +539,29 @@ Template.ozwellModal.onCreated(function () {
         });
     };
 
-    template.setupMcpBridge = function () {
-        if (template.mcpListener) return;
+        template.setupMcpBridge = function () {
+            if (template.mcpListener) return;
 
-        template.mcpListener = function (event) {
-            const data = event.data;
-            if (!data || data.source !== 'ozwell-mcp-frame') return;
+            template.mcpListener = function (event) {
+                const data = event.data;
+                if (!data || data.source !== 'ozwell-mcp-frame') return;
 
-            const iframe = document.getElementById('ozwell-mcp-frame');
-            if (!iframe || !iframe.contentWindow) return;
+                const iframe = document.getElementById('ozwell-mcp-frame');
+                if (!iframe || !iframe.contentWindow) return;
 
-            const reply = (message) => {
-                iframe.contentWindow.postMessage({ source: 'ozwell-modal-bridge', ...message }, '*');
-            };
+                const reply = (message) => {
+                    iframe.contentWindow.postMessage({ source: 'ozwell-modal-bridge', ...message }, '*');
+                };
 
-            if (data.type === 'client-hello') {
-                const summary = buildContextSummary(template.currentContext.get() || {});
-                reply({ type: 'mcp-ready', contextSummary: summary });
-                return;
-            }
+                // NOTE(uid_future-mcp): This handler does NOT implement the real MCP spec. It simply
+                // proxies the iframe's prompt string directly to callReferenceAssistant, and wraps the
+                // REST response in a minimal model-response shape. When the reference server (or Ozwell)
+                // exposes true MCP endpoints, replace this stub with actual MCP serialization.
+                if (data.type === 'client-hello') {
+                    const summary = buildContextSummary(template.currentContext.get() || {});
+                    reply({ type: 'mcp-ready', contextSummary: summary });
+                    return;
+                }
 
             if (data.type === 'model-request') {
                 const promptText = data.payload?.prompt || '';
