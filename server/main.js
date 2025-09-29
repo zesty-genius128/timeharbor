@@ -105,8 +105,15 @@ Meteor.startup(async () => {
 });
 
 Meteor.publish('userTeams', function () {
-  // Only publish teams the user is a member of
-  return Teams.find({ members: this.userId });
+  // Publish teams where the user is a member, leader, or admin
+  if (!this.userId) return this.ready();
+  return Teams.find({
+    $or: [
+      { members: this.userId },
+      { leader: this.userId },
+      { admins: this.userId },
+    ],
+  });
 });
 
 Meteor.publish('teamDetails', function (teamId) {
@@ -120,8 +127,17 @@ Meteor.publish('teamMembers', async function (teamIds) {
   
   check(validTeamIds, [String]);
   
-  // Only allow if user is a member of all requested teams
-  const teams = await Teams.find({ _id: { $in: validTeamIds }, members: this.userId }).fetchAsync();
+  if (!this.userId) return this.ready();
+
+  // Allow if user is a member, leader, or admin of the requested teams
+  const teams = await Teams.find({
+    _id: { $in: validTeamIds },
+    $or: [
+      { members: this.userId },
+      { leader: this.userId },
+      { admins: this.userId },
+    ],
+  }).fetchAsync();
   const userIds = Array.from(new Set(teams.flatMap(team => team.members || [])));
   return Meteor.users.find({ _id: { $in: userIds } }, { fields: { 'emails.address': 1 } });
 });
@@ -148,10 +164,38 @@ Meteor.publish('clockEventsForTeams', async function (teamIds) {
   
   check(validTeamIds, [String]);
   
-  // Only publish clock events for teams the user leads
-  const leaderTeams = await Teams.find({ leader: this.userId, _id: { $in: validTeamIds } }).fetchAsync();
-  const allowedTeamIds = leaderTeams.map(t => t._id);
+  if (!this.userId) return this.ready();
+
+  // Publish clock events for teams the user leads OR admins
+  const allowedTeams = await Teams.find({
+    _id: { $in: validTeamIds },
+    $or: [
+      { leader: this.userId },
+      { admins: this.userId },
+    ],
+  }).fetchAsync();
+  const allowedTeamIds = allowedTeams.map(t => t._id);
   return ClockEvents.find({ teamId: { $in: allowedTeamIds } });
+});
+
+// Publish all tickets for a team for admin review (only for team leaders/admins)
+Meteor.publish('adminTeamTickets', async function (teamId) {
+  check(teamId, String);
+  if (!this.userId) return this.ready();
+
+  // Check if user is admin/leader of the team
+  const team = await Teams.findOneAsync({ 
+    _id: teamId, 
+    $or: [
+      { leader: this.userId },
+      { admins: this.userId }
+    ]
+  });
+
+  if (!team) return this.ready();
+
+  // Return all tickets for this team (not just user's own tickets)
+  return Tickets.find({ teamId });
 });
 
 Meteor.publish('usersByIds', async function (userIds) {
