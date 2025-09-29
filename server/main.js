@@ -12,7 +12,7 @@ import { clockEventMethods } from './methods/clockEvents.js';
 
 // Load environment variables from .env file
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '.env' });
 
 Meteor.startup(async () => {
   // Configure Google OAuth from environment variables
@@ -36,7 +36,28 @@ Meteor.startup(async () => {
     console.error('Required: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
   }
 
-  // Configure additional find user for Google OAuth
+  // Configure GitHub OAuth from environment variables
+  const githubClientId = process.env.HUB_CLIENT_ID;
+  const githubClientSecret = process.env.HUB_CLIENT_SECRET;
+  
+  if (githubClientId && githubClientSecret) {
+    await ServiceConfiguration.configurations.upsertAsync(
+      { service: 'github' },
+      {
+        $set: {
+          clientId: githubClientId,
+          secret: githubClientSecret,
+          loginStyle: 'popup'
+        }
+      }
+    );
+    console.log('GitHub OAuth configured successfully');
+  } else {
+    console.error('GitHub OAuth environment variables not found. Please check your .env file.');
+    console.error('Required: GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET');
+  }
+
+  // Configure additional find user for OAuth providers
   Accounts.setAdditionalFindUserOnExternalLogin(
     ({ serviceName, serviceData }) => {
       if (serviceName === "google") {
@@ -47,8 +68,21 @@ Meteor.startup(async () => {
         // of how bad actors could play.
         return Accounts.findUserByEmail(serviceData.email);
       }
+      
+      if (serviceName === "github") {
+        // For GitHub, we can use the email from the service data
+        // GitHub provides email in serviceData.email
+        return Accounts.findUserByEmail(serviceData.email);
+      }
     }
   );
+
+  // Configure Meteor to use email-based accounts
+  Accounts.config({
+    forbidClientAccountCreation: false, // Allow client-side account creation
+    sendVerificationEmail: false, // Don't require email verification for now
+    loginExpirationInDays: 90 // Session expires after 90 days
+  });
 
   // Code to run on server startup
   if (await Tickets.find().countAsync() === 0) {
@@ -105,7 +139,7 @@ Meteor.publish('teamMembers', async function (teamIds) {
     ],
   }).fetchAsync();
   const userIds = Array.from(new Set(teams.flatMap(team => team.members || [])));
-  return Meteor.users.find({ _id: { $in: userIds } }, { fields: { username: 1 } });
+  return Meteor.users.find({ _id: { $in: userIds } }, { fields: { 'emails.address': 1 } });
 });
 
 Meteor.publish('teamTickets', function (teamIds) {
@@ -183,7 +217,7 @@ Meteor.publish('usersByIds', async function (userIds) {
   ));
   
   const filteredUserIds = validUserIds.filter(id => allowedUserIds.includes(id));
-  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { username: 1 } });
+  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { 'emails.address': 1 } });
 });
 
 Meteor.methods({
@@ -196,6 +230,6 @@ Meteor.methods({
     check(name, String);
     // Logic to create a participant account
     console.log(`Creating participant with name: ${name}`);
-    Accounts.createUser({ username: name });
+    Accounts.createUser({ email: name });
   },
 });

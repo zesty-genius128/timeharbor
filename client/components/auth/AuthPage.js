@@ -1,5 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
+import { Meteor } from 'meteor/meteor';
 
 // Simple state management using ReactiveVar (built-in)
 const authFormType = new ReactiveVar('hidden'); // Start with hidden form
@@ -32,6 +33,16 @@ Template.authPage.helpers({
   isLoginLoading: () => Template.instance().isLoginLoading.get()
 });
 
+// Helper for formField template
+Template.formField.helpers({
+  emailPattern() {
+    return this.type === 'email' ? '[^@]+@[^@]+\\.[^@]+' : '';
+  },
+  emailTitle() {
+    return this.type === 'email' ? 'Please enter a valid email with domain (e.g., user@example.com)' : '';
+  }
+});
+
 Template.authPage.events({
   'click #showSignupBtn': () => authFormType.set('signup'),
   'click #showLoginBtn': () => authFormType.set('login'),
@@ -61,15 +72,39 @@ Template.authPage.events({
       }
     });
   },
+
+  // GitHub OAuth Login
+  'click #at-github'(event, template) {
+    event.preventDefault();                                    // Prevent default button behavior
+    template.loginError.set('');                              // Clear any previous errors
+    template.isLoginLoading.set(true);                        // Show loading state
+    
+    // Use Meteor's built-in GitHub OAuth
+    Meteor.loginWithGithub({
+      requestPermissions: ['user:email']                      // Request user's email
+    }, (err) => {                                             // Callback function to handle result
+      template.isLoginLoading.set(false);                     // Hide loading state
+      if (err) {                                              // If there's an error
+        console.error('GitHub login error:', err);            // Log error to console
+        template.loginError.set(err.reason || 'GitHub login failed. Please try again.'); // Show user-friendly error
+      } else {                                                // If login is successful
+        console.log('GitHub login successful');               // Log success
+        // The autorun in authPage will handle the redirect to main page
+      }
+    });
+  },
   
   'submit #signupForm'(event) {
     event.preventDefault();
-    const { username, password, confirmPassword } = event.target;
+    const { email, password, confirmPassword } = event.target;
     
     if (password.value !== confirmPassword.value) return alert('Passwords do not match');
     if (password.value.length < 6) return alert('Password too short');
     
-    Accounts.createUser({ username: username.value.trim(), password: password.value }, (err) => {
+    Accounts.createUser({ 
+      email: email.value.trim(), 
+      password: password.value 
+    }, (err) => {
       if (err) alert('Signup failed: ' + err.reason);
       else currentScreen.set('mainLayout');
     });
@@ -77,9 +112,9 @@ Template.authPage.events({
   
   'submit #loginForm'(event) {
     event.preventDefault();
-    const { username, password } = event.target;
+    const { email, password } = event.target;
     
-    Meteor.loginWithPassword(username.value.trim(), password.value, (err) => {
+    Meteor.loginWithPassword(email.value.trim(), password.value, (err) => {
       if (err) alert('Login failed: ' + err.reason);
       else currentScreen.set('mainLayout');
     });

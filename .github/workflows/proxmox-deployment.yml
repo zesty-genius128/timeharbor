@@ -28,11 +28,18 @@ jobs:
             with: 
                 proxmox_username: ${{ secrets.PROXMOX_USERNAME }}
                 proxmox_password: ${{ secrets.PROXMOX_PASSWORD }}
-                container_env_vars: '{"GOOGLE_CLIENT_ID": "${{ secrets.GOOGLE_CLIENT_ID }}", "GOOGLE_CLIENT_SECRET": "${{ secrets.GOOGLE_CLIENT_SECRET }}"}'
+                container_env_vars: '{"ROOT_URL": "https://mieweb-timeharbor-main.opensource.mieweb.org", "GOOGLE_CLIENT_ID": "${{ secrets.GOOGLE_CLIENT_ID }}", "GOOGLE_CLIENT_SECRET": "${{ secrets.GOOGLE_CLIENT_SECRET }}", "HUB_CLIENT_ID": "${{ secrets.HUB_CLIENT_ID }}", "HUB_CLIENT_SECRET": "${{ secrets.HUB_CLIENT_SECRET }}", "METEOR_ALLOW_SUPERUSER": "true"}'
                 github_pat: ${{ secrets.RUNNER_PAT }}
                 http_port: 3000
                 install_command: npm install
-                start_command: meteor run --port 0.0.0.0:3000 --allow-superuser
+                start_command: |
+                  export ROOT_URL=https://mieweb-timeharbor-main.opensource.mieweb.org
+                  export GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+                  export GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+                  export HUB_CLIENT_ID=${{ secrets.HUB_CLIENT_ID }}
+                  export HUB_CLIENT_SECRET=${{ secrets.HUB_CLIENT_SECRET }}
+                  export METEOR_ALLOW_SUPERUSER=true
+                  meteor run --port 0.0.0.0:3000 --allow-superuser
                 runtime_language: nodejs
                 services: '["meteor"]'
 
