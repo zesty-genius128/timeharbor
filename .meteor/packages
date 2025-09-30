@@ -28,3 +28,4 @@ accounts-password@3.2.1
 accounts-google@1.4.1
 service-configuration@1.3.5
 accounts-github@1.5.1
+http
