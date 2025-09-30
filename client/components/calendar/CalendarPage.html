@@ -10,11 +10,11 @@
 
     <!-- Calendar Events Section -->
     <div class="mb-8">
-      <div class="flex items-center justify-between mb-4">
+      <div class="mb-4">
         <h3 class="text-xl font-semibold">Your Calendar Events</h3>
-        <button id="sync-calendar" class="btn btn-sm btn-primary {{#if isSyncingCalendar}}loading{{/if}}">
-          {{#if isSyncingCalendar}}Syncing...{{else}}Sync Calendar{{/if}}
-        </button>
+        {{#if isSyncingCalendar}}
+          <p class="text-sm text-gray-500 mt-1">Loading events...</p>
+        {{/if}}
       </div>
       
       {{#if calendarError}}

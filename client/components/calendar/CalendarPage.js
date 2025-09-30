@@ -38,29 +38,6 @@ Template.calendar.events({
     authenticateGoogle(template, false);
   },
 
-  'click #sync-calendar'(event, template) {
-    event.preventDefault();
-    
-    if (template.isSyncingCalendar.get()) return;
-    
-    template.isSyncingCalendar.set(true);
-    template.calendarError.set('');
-    
-    Meteor.call('getMyCalendarEvents', (error, result) => {
-      template.isSyncingCalendar.set(false);
-      
-      if (error) {
-        template.calendarError.set(error.reason || 'Failed to sync calendar');
-      } else {
-        template.calendarEvents.set(result.meetings);
-        template.calendarError.set('');
-        
-        if (result.count === 0) {
-          template.calendarError.set('No calendar events found for the past 7 days or next 30 days.');
-        }
-      }
-    });
-  },
   
   'click .log-meeting'(event, template) {
     event.preventDefault();
@@ -94,10 +71,10 @@ Template.calendar.events({
   }
 });
 
-// Helper function for Google authentication
+// Helper function for Google CALENDAR authentication (separate from login)
 function authenticateGoogle(template, isReauth = false) {
   const options = {
-    requestPermissions: ['email', 'profile', 'https://www.googleapis.com/auth/calendar.readonly'],
+    requestPermissions: ['email', 'profile', 'https://www.googleapis.com/auth/calendar.readonly'], // Add calendar access
     requestOfflineToken: true,
     loginStyle: 'popup'
   };
@@ -111,8 +88,19 @@ function authenticateGoogle(template, isReauth = false) {
       template.calendarError.set(`Failed to ${isReauth ? 're-authenticate' : 'connect'}: ${error.reason}`);
     } else {
       template.calendarError.set('');
-      // Auto-sync after successful authentication
-      setTimeout(() => $('#sync-calendar').click(), 1000);
+      // Auto-fetch calendar events after successful connection
+      setTimeout(() => {
+        template.isSyncingCalendar.set(true);
+        Meteor.call('getMyCalendarEvents', (error, result) => {
+          template.isSyncingCalendar.set(false);
+          if (error) {
+            template.calendarError.set(error.reason || 'Failed to fetch calendar events');
+          } else {
+            template.calendarEvents.set(result.meetings || []);
+            template.calendarError.set('');
+          }
+        });
+      }, 1000);
     }
   });
 }
