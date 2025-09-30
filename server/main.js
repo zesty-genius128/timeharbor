@@ -9,6 +9,8 @@ import { teamMethods } from './methods/teams.js';
 // Import ticket and clock event methods
 import { ticketMethods } from './methods/tickets.js';
 import { clockEventMethods } from './methods/clockEvents.js';
+// Import calendar methods
+import './methods/calendar.js';
 
 // Load environment variables from .env file
 import dotenv from 'dotenv';
