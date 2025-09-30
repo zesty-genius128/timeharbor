@@ -1,4 +1,72 @@
 <template name="home">
+  <!-- Calendar Events Section -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-semibold">Your Calendar Events</h3>
+      <button id="sync-calendar" class="btn btn-sm btn-primary {{#if isSyncingCalendar}}loading{{/if}}">
+        {{#if isSyncingCalendar}}
+          Syncing...
+        {{else}}
+          Sync Calendar
+        {{/if}}
+      </button>
+    </div>
+    
+    {{#if calendarError}}
+      <div class="alert alert-error mb-4">
+        {{calendarError}}
+        {{#if hasGoogleAccount}}
+          <div class="mt-2">
+            <button id="reauth-google" class="btn btn-sm btn-outline">
+              Re-authenticate with Calendar Permissions
+            </button>
+          </div>
+        {{/if}}
+      </div>
+    {{/if}}
+    
+    {{#if hasCalendarEvents}}
+      <div class="grid gap-4 mb-6">
+        {{#each calendarEvents}}
+          <div class="card bg-base-100 shadow p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-semibold">{{title}}</h4>
+                <p class="text-sm text-gray-600">{{date}} • {{time}} - {{endTime}} ({{duration}}min)</p>
+              </div>
+              <button class="btn btn-sm btn-outline log-meeting" data-meeting-id="{{id}}" data-duration="{{duration}}" data-title="{{title}}">
+                Log {{duration}}min
+              </button>
+            </div>
+          </div>
+        {{/each}}
+      </div>
+    {{else}}
+      {{#unless isSyncingCalendar}}
+        <div class="text-center py-8 text-gray-500">
+          {{#if hasGoogleAccount}}
+            No calendar events found. Click "Sync Calendar" to fetch your meetings.
+          {{else}}
+            <div>
+              <p class="mb-4">Connect your Google account to see calendar events.</p>
+              <div class="space-y-2">
+                <button id="connect-google-account" class="btn btn-primary block">
+                  Connect Google Account
+                </button>
+                <button id="test-google-oauth" class="btn btn-outline btn-sm block">
+                  Test Google OAuth (Debug)
+                </button>
+                <button id="force-logout-login" class="btn btn-warning btn-sm block">
+                  Force Fresh Google Login
+                </button>
+              </div>
+            </div>
+          {{/if}}
+        </div>
+      {{/unless}}
+    {{/if}}
+  </div>
+
   <h3 class="text-xl font-semibold mb-4">Your Time Overview</h3>
   <ul class="space-y-4">
     {{#each allClockEvents}}
