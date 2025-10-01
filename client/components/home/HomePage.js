@@ -17,8 +17,19 @@ Template.home.onCreated(function () {
       // Also subscribe to all tickets for these teams
       this.subscribe('teamTickets', teamIds);
     }
-    // Subscribe to all users in those teams for username display
-    const allMembers = Array.from(new Set(leaderTeams.flatMap(t => t.members)));
+    
+    // Subscribe to all users from ALL teams (not just leader teams) for proper user display
+    const allTeams = Teams.find({
+      $or: [
+        { members: Meteor.userId() },
+        { leader: Meteor.userId() },
+        { admins: Meteor.userId() }
+      ]
+    }).fetch();
+    
+    const allMembers = Array.from(new Set(
+      allTeams.flatMap(t => [...(t.members || []), ...(t.admins || []), t.leader].filter(id => id))
+    ));
     if (allMembers.length) {
       this.subscribe('usersByIds', allMembers);
     }
