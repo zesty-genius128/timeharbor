@@ -229,7 +229,16 @@ Meteor.publish('usersByIds', async function (userIds) {
     return this.ready();
   }
   
-  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { 'emails.address': 1, 'services.google.email': 1, 'profile': 1 } });
+  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { 
+    fields: { 
+      'emails.address': 1, 
+      'services.google.email': 1, 
+      'services.google.name': 1,
+      'services.github.username': 1,
+      'profile': 1,
+      'username': 1
+    } 
+  });
 });
 
 Meteor.methods({

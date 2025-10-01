@@ -31,3 +31,30 @@ export const getUserEmail = (userId) => {
     
     return 'Unknown User';
 };
+
+// Get user name from user ID (profile name)
+export const getUserName = (userId) => {
+    const user = Meteor.users?.findOne(userId);
+    
+    // If no user found, check if it's the current user
+    if (!user && userId === Meteor.userId()) {
+        const currentUser = Meteor.user();
+        return currentUser?.profile?.name || 
+               currentUser?.services?.google?.name || 
+               currentUser?.services?.github?.username ||
+               'Unknown User';
+    }
+    
+    if (user) {
+        // Try multiple name sources for OAuth users
+        return user.profile?.name || 
+               user.services?.google?.name || 
+               user.services?.github?.username ||
+               user.username ||
+               // Fallback: extract name from email
+               (user.emails?.[0]?.address || user.services?.google?.email || '').split('@')[0] ||
+               'Unknown User';
+    }
+    
+    return 'Unknown User';
+};
