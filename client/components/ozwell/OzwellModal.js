@@ -1,11 +1,15 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
 import { Meteor } from 'meteor/meteor';
+import { Tracker } from 'meteor/tracker';
 
 import './OzwellModal.html';
 
 const DEFAULT_SYSTEM_MESSAGE = 'You are a helpful assistant for time tracking and project management.';
 const ENABLE_RECENT_CHATS = false;
+const EMBED_SCRIPT_URL = 'http://localhost:3000/embed/embed.js';
+const EMBED_ENDPOINT = 'http://localhost:3000/embed/chat';
+const EMBED_WIDGET_SRC = 'http://localhost:3000/embed/widget.html';
 
 const FALLBACK_PROMPTS = [
     {
@@ -311,7 +315,7 @@ Template.ozwellModal.onCreated(function () {
         template.currentTeamId.set(null);
         template.headerSubtitle.set('Ready to help with your work.');
         template.layoutMode.set('modal');
-        template.teardownMcpBridge();
+        template.unmountEmbeddedChat();
     };
 
     template.loadPrompts = function () {
@@ -539,70 +543,108 @@ Template.ozwellModal.onCreated(function () {
         });
     };
 
-        template.setupMcpBridge = function () {
-            if (template.mcpListener) return;
-
-            template.mcpListener = function (event) {
-                const data = event.data;
-                if (!data || data.source !== 'ozwell-mcp-frame') return;
-
-                const iframe = document.getElementById('ozwell-mcp-frame');
-                if (!iframe || !iframe.contentWindow) return;
-
-                const reply = (message) => {
-                    iframe.contentWindow.postMessage({ source: 'ozwell-modal-bridge', ...message }, '*');
-                };
-
-                // NOTE(uid_future-mcp): This handler does NOT implement the real MCP spec. It simply
-                // proxies the iframe's prompt string directly to callReferenceAssistant, and wraps the
-                // REST response in a minimal model-response shape. When the reference server (or Ozwell)
-                // exposes true MCP endpoints, replace this stub with actual MCP serialization.
-                if (data.type === 'client-hello') {
-                    const summary = buildContextSummary(template.currentContext.get() || {});
-                    reply({ type: 'mcp-ready', contextSummary: summary });
-                    return;
-                }
-
-            if (data.type === 'model-request') {
-                const promptText = data.payload?.prompt || '';
-                if (!promptText) {
-                    reply({ type: 'model-error', error: 'Empty prompt' });
-                    return;
-                }
-
-                const messages = buildMessagesForPrompt(promptText);
-                const metadata = {
-                    teamId: template.currentTeamId.get(),
-                    promptId: template.selectedPrompt.get()?.id,
-                    transport: 'mcp-frame'
-                };
-
-                Meteor.call('callReferenceAssistant', { messages, metadata }, (err, result) => {
-                    if (err) {
-                        reply({ type: 'model-error', error: err.reason || err.message || 'Unknown error' });
-                    } else {
-                        reply({ type: 'model-response', payload: { content: result?.content || '' } });
-                    }
-                });
-            }
+    template.getEmbedConfig = function () {
+        return {
+            containerId: 'ozwell-embed-container',
+            title: 'Ozwell Assistant',
+            placeholder: 'Ask me anything...',
+            model: 'llama3',
+            endpoint: EMBED_ENDPOINT,
+            src: EMBED_WIDGET_SRC,
         };
-
-        window.addEventListener('message', template.mcpListener);
     };
 
-    template.teardownMcpBridge = function () {
-        if (template.mcpListener) {
-            window.removeEventListener('message', template.mcpListener);
-            template.mcpListener = null;
+    template.ensureEmbedScript = function () {
+        if (document.querySelector('script[data-ozwell-embed]')) {
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+            window.OzwellChatConfig = template.getEmbedConfig();
+            const script = document.createElement('script');
+            script.src = EMBED_SCRIPT_URL;
+            script.dataset.ozwellEmbed = 'true';
+            script.addEventListener('load', () => resolve());
+            script.addEventListener('error', () => resolve());
+            document.body.appendChild(script);
+        });
+    };
+
+    template.handleEmbedInsert = function (event) {
+        if (!template.useMcpMode.get()) return;
+        const detail = event.detail || {};
+        const content = typeof detail.text === 'string' ? detail.text : '';
+        if (!content) return;
+
+        template.generatedContent.set(content);
+        template.canSave.set(true);
+        template.performAutofill({ closeModal: detail.close !== false });
+    };
+
+    template.handleEmbedClosed = function () {
+        if (!template.useMcpMode.get()) return;
+        template.closeModal();
+    };
+
+    template.mountEmbeddedChat = function () {
+        const container = document.getElementById('ozwell-embed-container');
+        if (!container) return;
+
+        if (!template.embedInsertListener) {
+            template.embedInsertListener = template.handleEmbedInsert.bind(template);
+            document.addEventListener('ozwell-chat-insert', template.embedInsertListener);
+        }
+
+        if (!template.embedClosedListener) {
+            template.embedClosedListener = template.handleEmbedClosed.bind(template);
+            document.addEventListener('ozwell-chat-closed', template.embedClosedListener);
+        }
+
+        const config = template.getEmbedConfig();
+        window.OzwellChatConfig = config;
+
+        template.ensureEmbedScript().then(() => {
+            if (!window.OzwellChat) return;
+            window.OzwellChat.configure(config);
+
+            const iframe = window.OzwellChat.iframe;
+            if (iframe) {
+                if (iframe.parentElement !== container) {
+                    container.appendChild(iframe);
+                }
+            } else {
+                window.OzwellChat.mount(config);
+            }
+        });
+    };
+
+    template.unmountEmbeddedChat = function () {
+        if (template.embedInsertListener) {
+            document.removeEventListener('ozwell-chat-insert', template.embedInsertListener);
+            template.embedInsertListener = null;
+        }
+
+        if (template.embedClosedListener) {
+            document.removeEventListener('ozwell-chat-closed', template.embedClosedListener);
+            template.embedClosedListener = null;
+        }
+
+        const container = document.getElementById('ozwell-embed-container');
+        if (container) {
+            container.innerHTML = '';
+        }
+
+        if (window.OzwellChat?.iframe) {
+            window.OzwellChat.iframe.remove();
         }
     };
 
     template.autorun(() => {
-        const useMcp = template.useMcpMode.get();
-        if (useMcp) {
-            template.setupMcpBridge();
+        const useEmbed = template.useMcpMode.get();
+        if (useEmbed) {
+            Tracker.afterFlush(() => template.mountEmbeddedChat());
         } else {
-            template.teardownMcpBridge();
+            template.unmountEmbeddedChat();
         }
     });
 
@@ -819,6 +861,10 @@ Template.ozwellModal.events({
             template.canSave.set(true);
         }
     }
+});
+
+Template.ozwellModal.onDestroyed(function () {
+    this.unmountEmbeddedChat();
 });
 
 Template.ozwellModal.onDestroyed(function () {

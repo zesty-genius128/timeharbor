@@ -201,36 +201,6 @@ Template.tickets.onCreated(function () {
   });
 });
 
-Template.tickets.onRendered(function () {
-  if (!Meteor.isDevelopment) return;
-
-  const containerConfig = {
-    containerId: 'tickets-ozwell-widget',
-    title: 'Ozwell Assistant',
-    placeholder: 'Ask me anything...',
-    model: 'llama3',
-    endpoint: 'http://localhost:3000/embed/chat',
-    src: 'http://localhost:3000/embed/widget.html',
-  };
-
-  if (!document.querySelector('script[data-ozwell-embed]')) {
-    window.OzwellChatConfig = {
-      ...containerConfig,
-    };
-
-    const script = document.createElement('script');
-    script.src = 'http://localhost:3000/embed/embed.js';
-    script.dataset.ozwellEmbed = 'true';
-    script.addEventListener('load', () => {
-      window.OzwellChat?.mount(containerConfig);
-    });
-    document.body.appendChild(script);
-  } else if (window.OzwellChat) {
-    window.OzwellChat.configure(containerConfig);
-    window.OzwellChat.mount(containerConfig);
-  }
-});
-
 Template.tickets.helpers({
   userTeams: getUserTeams,
   isSelectedTeam(teamId) {
