@@ -1,7 +1,3 @@
-//import { Template } from 'meteor/templating';
-//import { ReactiveVar } from 'meteor/reactive-var';
-//import { Teams, Tickets, ClockEvents } from '../collections.js';
-
 // Import HTML template first
 import './main.html';
 
@@ -25,6 +21,3 @@ import './components/admin/admin.js';
 
 // Import routing configuration
 import './routes.js';
-
-// Import currentTime from MainLayout
-//import { currentTime } from './components/layout/MainLayout.js';
