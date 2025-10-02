@@ -8,12 +8,14 @@ import { ReactiveVar } from 'meteor/reactive-var';
 export const currentRouteTemplate = new ReactiveVar(null);
 
 /**
- * GRADUAL MIGRATION PLAN:
+ * 🎉 MIGRATION COMPLETE! 🎉
  * ✅ Phase 1: Home route (/) - COMPLETED
  * ✅ Phase 2: Teams route (/teams) - COMPLETED
  * ✅ Phase 3: Tickets route (/tickets) - COMPLETED
  * ✅ Phase 4: Calendar route (/calendar) - COMPLETED
- * 🔄 Phase 5: Admin route (/admin) - FINAL PHASE
+ * ✅ Phase 5: Admin route (/admin) - COMPLETED
+ * 
+ * ALL ROUTES NOW USE FLOW ROUTER! 🚀
  */
 
 // Note: ostrio:flow-router-extra doesn't use FlowRouter.configure()
@@ -120,6 +122,32 @@ FlowRouter.route('/calendar', {
 });
 
 // =============================================================================
+// PHASE 5: ADMIN PAGE ROUTE - FINAL PHASE
+// =============================================================================
+
+/**
+ * Admin page route - /admin
+ * This replaces the manual template switching for admin page
+ * FINAL ROUTE - Completes the migration to Flow Router!
+ */
+FlowRouter.route('/admin', {
+  name: 'admin',
+  action(params, queryParams) {
+    // Check authentication first
+    if (!Meteor.userId()) {
+      // User not logged in - redirect to auth page
+      currentScreen.set('authPage');
+      return;
+    }
+    
+    // User is logged in - show main layout with admin template
+    currentScreen.set('mainLayout');
+    // Set the template for Flow Router managed routes
+    currentRouteTemplate.set('admin');
+  }
+});
+
+// =============================================================================
 // FALLBACK FOR NON-MIGRATED ROUTES
 // =============================================================================
 
@@ -151,7 +179,7 @@ FlowRouter.route('*', {
  */
 export const isRouteHandledByFlowRouter = () => {
   const currentRoute = FlowRouter.getRouteName();
-  return currentRoute === 'home' || currentRoute === 'teams' || currentRoute === 'tickets' || currentRoute === 'calendar';
+  return currentRoute === 'home' || currentRoute === 'teams' || currentRoute === 'tickets' || currentRoute === 'calendar' || currentRoute === 'admin';
 };
 
 /**
@@ -167,6 +195,8 @@ export const navigateToRoute = (routeName, params = {}) => {
     FlowRouter.go('/tickets', params);
   } else if (routeName === 'calendar') {
     FlowRouter.go('/calendar', params);
+  } else if (routeName === 'admin') {
+    FlowRouter.go('/admin', params);
   } else {
     // For non-migrated routes, fall back to old system
     console.log(`Route '${routeName}' not yet migrated to Flow Router`);
@@ -175,4 +205,4 @@ export const navigateToRoute = (routeName, params = {}) => {
   return true;
 };
 
-console.log('✅ Flow Router configured - Phase 4: Home, Teams, Tickets, and Calendar routes');
+console.log('🎉 MIGRATION COMPLETE! All routes now use Flow Router: Home, Teams, Tickets, Calendar, and Admin');

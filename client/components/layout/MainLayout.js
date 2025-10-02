@@ -90,7 +90,7 @@ if (Template.mainLayout) {
       const href = event.currentTarget.getAttribute('href');
       const target = href.substring(1);
       
-      // GRADUAL MIGRATION: Check if this route is handled by Flow Router
+      // MIGRATION COMPLETE: All routes now use Flow Router!
       if (href === '/' || target === 'home' || target === '') {
         // Use Flow Router for home page
         FlowRouter.go('/');
@@ -103,9 +103,12 @@ if (Template.mainLayout) {
       } else if (href === '/calendar' || target === 'calendar') {
         // Use Flow Router for calendar page
         FlowRouter.go('/calendar');
+      } else if (href === '/admin' || target === 'admin') {
+        // Use Flow Router for admin page
+        FlowRouter.go('/admin');
       } else {
-        // Use old system for non-migrated routes
-        currentTemplate.set(target || 'home');
+        // Fallback to home for unknown routes
+        FlowRouter.go('/');
       }
     },
     'click #logoutBtn'(event, instance) {
