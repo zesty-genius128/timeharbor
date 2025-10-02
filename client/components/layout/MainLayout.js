@@ -94,6 +94,9 @@ if (Template.mainLayout) {
       if (href === '/' || target === 'home' || target === '') {
         // Use Flow Router for home page
         FlowRouter.go('/');
+      } else if (href === '/teams' || target === 'teams') {
+        // Use Flow Router for teams page
+        FlowRouter.go('/teams');
       } else {
         // Use old system for non-migrated routes
         currentTemplate.set(target || 'home');
