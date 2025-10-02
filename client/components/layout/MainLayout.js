@@ -1,6 +1,8 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra';
 import { currentScreen } from '../auth/AuthPage.js';
+import { isRouteHandledByFlowRouter, currentRouteTemplate } from '../../routes.js';
 
 // Constants for better maintainability
 const MESSAGE_TIMEOUT = 3000;
@@ -60,6 +62,12 @@ if (Template.mainLayout) {
 
   Template.mainLayout.helpers({
     main() {
+      // GRADUAL MIGRATION: Check if current route is handled by Flow Router
+      if (isRouteHandledByFlowRouter()) {
+        // Return the template set by Flow Router
+        return currentRouteTemplate.get();
+      }
+      // Fall back to old system for non-migrated routes
       return currentTemplate.get();
     },
     currentUser() {
@@ -79,8 +87,17 @@ if (Template.mainLayout) {
   Template.mainLayout.events({
     'click nav a'(event) {
       event.preventDefault();
-      const target = event.currentTarget.getAttribute('href').substring(1);
-      currentTemplate.set(target || 'home');
+      const href = event.currentTarget.getAttribute('href');
+      const target = href.substring(1);
+      
+      // GRADUAL MIGRATION: Check if this route is handled by Flow Router
+      if (href === '/' || target === 'home' || target === '') {
+        // Use Flow Router for home page
+        FlowRouter.go('/');
+      } else {
+        // Use old system for non-migrated routes
+        currentTemplate.set(target || 'home');
+      }
     },
     'click #logoutBtn'(event, instance) {
       event.preventDefault();

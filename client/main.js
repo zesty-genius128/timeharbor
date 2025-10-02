@@ -23,6 +23,8 @@ import './components/home/HomePage.js';
 import './components/calendar/CalendarPage.js';
 import './components/admin/admin.js';
 
-// Import currentTime from MainLayout
+// Import routing configuration
+import './routes.js';
 
+// Import currentTime from MainLayout
 //import { currentTime } from './components/layout/MainLayout.js';
