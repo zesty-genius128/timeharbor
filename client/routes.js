@@ -12,8 +12,8 @@ export const currentRouteTemplate = new ReactiveVar(null);
  * ✅ Phase 1: Home route (/) - COMPLETED
  * ✅ Phase 2: Teams route (/teams) - COMPLETED
  * ✅ Phase 3: Tickets route (/tickets) - COMPLETED
- * 🔄 Phase 4: Calendar route (/calendar) - NEXT
- * ⏳ Phase 5: Admin route (/admin)
+ * ✅ Phase 4: Calendar route (/calendar) - COMPLETED
+ * 🔄 Phase 5: Admin route (/admin) - FINAL PHASE
  */
 
 // Note: ostrio:flow-router-extra doesn't use FlowRouter.configure()
@@ -95,6 +95,31 @@ FlowRouter.route('/tickets', {
 });
 
 // =============================================================================
+// PHASE 4: CALENDAR PAGE ROUTE
+// =============================================================================
+
+/**
+ * Calendar page route - /calendar
+ * This replaces the manual template switching for calendar page
+ */
+FlowRouter.route('/calendar', {
+  name: 'calendar',
+  action(params, queryParams) {
+    // Check authentication first
+    if (!Meteor.userId()) {
+      // User not logged in - redirect to auth page
+      currentScreen.set('authPage');
+      return;
+    }
+    
+    // User is logged in - show main layout with calendar template
+    currentScreen.set('mainLayout');
+    // Set the template for Flow Router managed routes
+    currentRouteTemplate.set('calendar');
+  }
+});
+
+// =============================================================================
 // FALLBACK FOR NON-MIGRATED ROUTES
 // =============================================================================
 
@@ -126,7 +151,7 @@ FlowRouter.route('*', {
  */
 export const isRouteHandledByFlowRouter = () => {
   const currentRoute = FlowRouter.getRouteName();
-  return currentRoute === 'home' || currentRoute === 'teams' || currentRoute === 'tickets';
+  return currentRoute === 'home' || currentRoute === 'teams' || currentRoute === 'tickets' || currentRoute === 'calendar';
 };
 
 /**
@@ -140,6 +165,8 @@ export const navigateToRoute = (routeName, params = {}) => {
     FlowRouter.go('/teams', params);
   } else if (routeName === 'tickets') {
     FlowRouter.go('/tickets', params);
+  } else if (routeName === 'calendar') {
+    FlowRouter.go('/calendar', params);
   } else {
     // For non-migrated routes, fall back to old system
     console.log(`Route '${routeName}' not yet migrated to Flow Router`);
@@ -148,4 +175,4 @@ export const navigateToRoute = (routeName, params = {}) => {
   return true;
 };
 
-console.log('✅ Flow Router configured - Phase 3: Home, Teams, and Tickets routes');
+console.log('✅ Flow Router configured - Phase 4: Home, Teams, Tickets, and Calendar routes');

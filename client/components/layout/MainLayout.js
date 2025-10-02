@@ -100,6 +100,9 @@ if (Template.mainLayout) {
       } else if (href === '/tickets' || target === 'tickets') {
         // Use Flow Router for tickets page
         FlowRouter.go('/tickets');
+      } else if (href === '/calendar' || target === 'calendar') {
+        // Use Flow Router for calendar page
+        FlowRouter.go('/calendar');
       } else {
         // Use old system for non-migrated routes
         currentTemplate.set(target || 'home');
