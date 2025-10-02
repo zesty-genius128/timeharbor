@@ -1,4 +1,5 @@
 import { Template } from 'meteor/templating';
+import { ReactiveVar } from 'meteor/reactive-var';
 import { Teams, Tickets, ClockEvents } from '../../../collections.js';
 import { currentTime } from '../layout/MainLayout.js';
 import { formatTime, formatDate, calculateTotalTime } from '../../utils/TimeUtils.js';
@@ -51,4 +52,10 @@ Template.home.helpers({
     return calculateTotalTime(ticket);  // Using imported utility
   },
   formatTime,  // Using imported utility
+  isClockEventsLoading,
+  isTeamsLoading
+});
+
+Template.home.events({
+  // No events needed for this simplified home page
 });

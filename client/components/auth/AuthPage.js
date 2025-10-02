@@ -58,9 +58,9 @@ Template.authPage.events({
     template.loginError.set('');                              // Clear any previous errors
     template.isLoginLoading.set(true);                        // Show loading state
     
-    // Use Meteor's built-in Google OAuth
+    // Use Meteor's built-in Google OAuth - BASIC LOGIN ONLY (no calendar)
     Meteor.loginWithGoogle({
-      requestPermissions: ['email', 'profile']                 // Request user's email and profile info
+      requestPermissions: ['email', 'profile']                // Only basic login permissions
     }, (err) => {                                             // Callback function to handle result
       template.isLoginLoading.set(false);                     // Hide loading state
       if (err) {                                              // If there's an error
