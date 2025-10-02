@@ -150,8 +150,8 @@ Meteor.publish('teamTickets', function (teamIds) {
   
   check(validTeamIds, [String]);
   
-  // Only publish tickets for this team that were created by the current user
-  return Tickets.find({ teamId: { $in: validTeamIds }, createdBy: this.userId });
+  // Publish all tickets for these teams (not just created by current user)
+  return Tickets.find({ teamId: { $in: validTeamIds } });
 });
 
 Meteor.publish('clockEventsForUser', function () {
@@ -204,22 +204,41 @@ Meteor.publish('usersByIds', async function (userIds) {
   // Filter out null/undefined values before validation
   const validUserIds = userIds.filter(id => id !== null && id !== undefined && typeof id === 'string');
   
+  if (validUserIds.length === 0) {
+    return this.ready();
+  }
+  
   check(validUserIds, [String]);
   
-  // Only publish users that are in teams the current user is a member or leader of
-  const userTeams = await Teams.find({ $or: [{ members: this.userId }, { leader: this.userId }] }).fetchAsync();
+  // Only publish users that are in teams the current user is a member, leader, or admin of
+  const userTeams = await Teams.find({ $or: [{ members: this.userId }, { leader: this.userId }, { admins: this.userId }] }).fetchAsync();
   
   // Filter out null/undefined values and flatten the arrays safely
   const allowedUserIds = Array.from(new Set(
     userTeams.flatMap(team => {
       const members = team.members || [];
+      const admins = team.admins || [];
       const leader = team.leader || null;
-      return [...members, leader].filter(id => id !== null && id !== undefined);
+      return [...members, ...admins, leader].filter(id => id !== null && id !== undefined);
     })
   ));
   
   const filteredUserIds = validUserIds.filter(id => allowedUserIds.includes(id));
-  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { fields: { 'emails.address': 1 } });
+  
+  if (filteredUserIds.length === 0) {
+    return this.ready();
+  }
+  
+  return Meteor.users.find({ _id: { $in: filteredUserIds } }, { 
+    fields: { 
+      'emails.address': 1, 
+      'services.google.email': 1, 
+      'services.google.name': 1,
+      'services.github.username': 1,
+      'profile': 1,
+      'username': 1
+    } 
+  });
 });
 
 Meteor.methods({
