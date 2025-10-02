@@ -7,9 +7,9 @@ import './OzwellModal.html';
 
 const DEFAULT_SYSTEM_MESSAGE = 'You are a helpful assistant for time tracking and project management.';
 const ENABLE_RECENT_CHATS = false;
-const EMBED_SCRIPT_URL = 'http://localhost:3000/embed/embed.js';
-const EMBED_ENDPOINT = 'http://localhost:3000/embed/chat';
-const EMBED_WIDGET_SRC = 'http://localhost:3000/embed/widget.html';
+const EMBED_SCRIPT_URL = 'https://ozwellai-reference-server.opensource.mieweb.org/embed/embed.js';
+const EMBED_ENDPOINT = 'https://ozwellai-reference-server.opensource.mieweb.org/embed/chat';
+const EMBED_WIDGET_SRC = 'https://ozwellai-reference-server.opensource.mieweb.org/embed/widget.html';
 
 const FALLBACK_PROMPTS = [
     {
@@ -550,22 +550,31 @@ Template.ozwellModal.onCreated(function () {
             placeholder: 'Ask me anything...',
             model: 'llama3',
             endpoint: EMBED_ENDPOINT,
-            src: EMBED_WIDGET_SRC,
+            widgetUrl: EMBED_WIDGET_SRC,
         };
     };
 
     template.ensureEmbedScript = function () {
         if (document.querySelector('script[data-ozwell-embed]')) {
+            console.log('[Ozwell] Embed script already loaded');
             return Promise.resolve();
         }
 
         return new Promise((resolve) => {
             window.OzwellChatConfig = template.getEmbedConfig();
+            console.log('[Ozwell] Loading embed script from:', EMBED_SCRIPT_URL);
+            console.log('[Ozwell] Embed config:', window.OzwellChatConfig);
             const script = document.createElement('script');
             script.src = EMBED_SCRIPT_URL;
             script.dataset.ozwellEmbed = 'true';
-            script.addEventListener('load', () => resolve());
-            script.addEventListener('error', () => resolve());
+            script.addEventListener('load', () => {
+                console.log('[Ozwell] Embed script loaded successfully');
+                resolve();
+            });
+            script.addEventListener('error', (e) => {
+                console.error('[Ozwell] Failed to load embed script:', e);
+                resolve();
+            });
             document.body.appendChild(script);
         });
     };
@@ -588,7 +597,12 @@ Template.ozwellModal.onCreated(function () {
 
     template.mountEmbeddedChat = function () {
         const container = document.getElementById('ozwell-embed-container');
-        if (!container) return;
+        if (!container) {
+            console.error('[Ozwell] Container not found');
+            return;
+        }
+
+        console.log('[Ozwell] Mounting embedded chat');
 
         if (!template.embedInsertListener) {
             template.embedInsertListener = template.handleEmbedInsert.bind(template);
@@ -604,16 +618,25 @@ Template.ozwellModal.onCreated(function () {
         window.OzwellChatConfig = config;
 
         template.ensureEmbedScript().then(() => {
-            if (!window.OzwellChat) return;
-            window.OzwellChat.configure(config);
+            if (!window.OzwellChat) {
+                console.error('[Ozwell] window.OzwellChat not available after script load');
+                return;
+            }
 
-            const iframe = window.OzwellChat.iframe;
-            if (iframe) {
-                if (iframe.parentElement !== container) {
-                    container.appendChild(iframe);
-                }
-            } else {
-                window.OzwellChat.mount(config);
+            // Clear any existing iframe to force fresh mount with new config
+            if (window.OzwellChat.iframe) {
+                console.log('[Ozwell] Removing existing iframe to force fresh mount');
+                window.OzwellChat.iframe.remove();
+                window.OzwellChat.iframe = null;
+            }
+
+            console.log('[Ozwell] Mounting new iframe with config:', config);
+            window.OzwellChat.configure(config);
+            window.OzwellChat.mount(config);
+
+            // Move iframe to our container
+            if (window.OzwellChat.iframe && window.OzwellChat.iframe.parentElement !== container) {
+                container.appendChild(window.OzwellChat.iframe);
             }
         });
     };
