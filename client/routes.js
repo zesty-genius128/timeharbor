@@ -11,8 +11,9 @@ export const currentRouteTemplate = new ReactiveVar(null);
  * GRADUAL MIGRATION PLAN:
  * ✅ Phase 1: Home route (/) - COMPLETED
  * ✅ Phase 2: Teams route (/teams) - COMPLETED
- * 🔄 Phase 3: Tickets route (/tickets) - NEXT
- * ⏳ Phase 4: Calendar, Admin routes
+ * ✅ Phase 3: Tickets route (/tickets) - COMPLETED
+ * 🔄 Phase 4: Calendar route (/calendar) - NEXT
+ * ⏳ Phase 5: Admin route (/admin)
  */
 
 // Note: ostrio:flow-router-extra doesn't use FlowRouter.configure()
@@ -69,6 +70,31 @@ FlowRouter.route('/teams', {
 });
 
 // =============================================================================
+// PHASE 3: TICKETS PAGE ROUTE
+// =============================================================================
+
+/**
+ * Tickets page route - /tickets
+ * This replaces the manual template switching for tickets page
+ */
+FlowRouter.route('/tickets', {
+  name: 'tickets',
+  action(params, queryParams) {
+    // Check authentication first
+    if (!Meteor.userId()) {
+      // User not logged in - redirect to auth page
+      currentScreen.set('authPage');
+      return;
+    }
+    
+    // User is logged in - show main layout with tickets template
+    currentScreen.set('mainLayout');
+    // Set the template for Flow Router managed routes
+    currentRouteTemplate.set('tickets');
+  }
+});
+
+// =============================================================================
 // FALLBACK FOR NON-MIGRATED ROUTES
 // =============================================================================
 
@@ -100,7 +126,7 @@ FlowRouter.route('*', {
  */
 export const isRouteHandledByFlowRouter = () => {
   const currentRoute = FlowRouter.getRouteName();
-  return currentRoute === 'home' || currentRoute === 'teams';
+  return currentRoute === 'home' || currentRoute === 'teams' || currentRoute === 'tickets';
 };
 
 /**
@@ -112,6 +138,8 @@ export const navigateToRoute = (routeName, params = {}) => {
     FlowRouter.go('/', params);
   } else if (routeName === 'teams') {
     FlowRouter.go('/teams', params);
+  } else if (routeName === 'tickets') {
+    FlowRouter.go('/tickets', params);
   } else {
     // For non-migrated routes, fall back to old system
     console.log(`Route '${routeName}' not yet migrated to Flow Router`);
@@ -120,4 +148,4 @@ export const navigateToRoute = (routeName, params = {}) => {
   return true;
 };
 
-console.log('✅ Flow Router configured - Phase 2: Home and Teams routes');
+console.log('✅ Flow Router configured - Phase 3: Home, Teams, and Tickets routes');
