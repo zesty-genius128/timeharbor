@@ -19,61 +19,8 @@
         <button id="yesterday-btn" class="btn btn-sm btn-outline">Yesterday</button>
       </div>
 
-      <!-- Team Summary Table -->
-      <div class="overflow-x-auto">
-        <table class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Team Member</th>
-              <th>Email</th>
-              <th>Total Hours</th>
-              <th>First Clock-in</th>
-              <th>Last Clock-out</th>
-              <th>Tickets Worked</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each teamMemberSummary}}
-              <tr>
-                <td class="font-medium">{{getDisplayName userId}}</td>
-                <td class="text-gray-600">{{userEmail}}</td>
-                <td>
-                  <span class="badge badge-primary">{{formatTime totalSeconds}}</span>
-                </td>
-                <td class="text-sm">
-                  {{#if firstClockIn}}
-                    {{formatDate firstClockIn}}
-                  {{else}}
-                    <span class="text-gray-400">No activity</span>
-                  {{/if}}
-                </td>
-                <td class="text-sm">
-                  {{#if lastClockOut}}
-                    {{formatDate lastClockOut}}
-                  {{else}}
-                    {{#if hasActiveSession}}
-                      <span class="text-success">Active</span>
-                    {{else}}
-                      <span class="text-gray-400">-</span>
-                    {{/if}}
-                  {{/if}}
-                </td>
-                <td>
-                  {{#if tickets.length}}
-                    <div class="flex flex-wrap gap-1">
-                      {{#each tickets}}
-                        <span class="badge badge-sm badge-outline">{{this}}</span>
-                      {{/each}}
-                    </div>
-                  {{else}}
-                    <span class="text-gray-400">No tickets</span>
-                  {{/if}}
-                </td>
-              </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
+      <!-- Team Summary Grid -->
+      <div id="teamDashboardGrid" class="ag-theme-alpine w-full h-96"></div>
 
       {{#unless teamMemberSummary.length}}
         <div class="text-center py-8 text-gray-500">
