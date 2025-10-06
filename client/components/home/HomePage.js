@@ -4,6 +4,7 @@ import { Teams, Tickets, ClockEvents } from '../../../collections.js';
 import { formatTime, formatDate, calculateTotalTime } from '../../utils/TimeUtils.js';
 import { getTeamName, getUserEmail, getUserName } from '../../utils/UserTeamUtils.js';
 import { Grid } from 'ag-grid-community';
+import { isTeamsLoading } from '../layout/MainLayout.js';
 
 Template.home.onCreated(function () {
   const template = this;
@@ -150,15 +151,25 @@ Template.home.onRendered(function () {
     return rows.filter(member => member.totalSeconds > 0 || member.hasActiveSession);
   };
 
-  // Initialize grid
-  const gridEl = instance.find('#teamDashboardGrid');
-  if (gridEl) {
-    new Grid(gridEl, instance.gridOptions);
-    const initialRows = computeTeamMemberSummary();
-    if (instance.gridOptions?.api) {
-      instance.gridOptions.api.setRowData(initialRows);
-    }
-  }
+  // Initialize grid when container exists and user is a leader (section is visible)
+  // Wait until teams subscription is ready and the container is in the DOM
+  instance.autorun(() => {
+    const teamsReady = !isTeamsLoading.get();
+    const hasLeaderTeam = !!Teams.findOne({ leader: Meteor.userId() });
+    if (!teamsReady || !hasLeaderTeam) return;
+
+    Tracker.afterFlush(() => {
+      const gridEl = instance.find('#teamDashboardGrid');
+      if (gridEl && !gridEl.__ag_initialized) {
+        new Grid(gridEl, instance.gridOptions);
+        gridEl.__ag_initialized = true;
+        const initialRows = computeTeamMemberSummary();
+        if (instance.gridOptions?.api) {
+          instance.gridOptions.api.setRowData(initialRows);
+        }
+      }
+    });
+  });
 
   // Reactive updates: respond to date changes and collection updates
   instance.autorun(() => {
