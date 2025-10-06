@@ -12,6 +12,8 @@ import { clockEventMethods } from './methods/clockEvents.js';
 import { ozwellMethods } from './methods/ozwell.js';
 import { ozwellPromptMethods } from './methods/ozwellPrompts.js';
 import { referenceAssistantMethods } from './methods/referenceAssistant.js';
+// Import MCP API endpoints
+import './api/mcp-api.js';
 Meteor.startup(async () => {
   // Code to run on server startup
   if (await Tickets.find().countAsync() === 0) {
