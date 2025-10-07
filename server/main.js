@@ -20,8 +20,6 @@ dotenv.config({ path: '.env' });
 import { ozwellMethods } from './methods/ozwell.js';
 import { ozwellPromptMethods } from './methods/ozwellPrompts.js';
 import { referenceAssistantMethods } from './methods/referenceAssistant.js';
-// Import MCP API endpoints
-import './api/mcp-api.js';
 Meteor.startup(async () => {
   // Configure Google OAuth from environment variables
   const googleClientId = process.env.GOOGLE_CLIENT_ID;

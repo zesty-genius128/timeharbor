@@ -111,8 +111,7 @@ Quick start: [click here](./HOW_TO_USE.md)
    Open your browser and navigate to `http://localhost:3000`
 
 5. **Optional: Configure Ozwell AI assistant**
-   - Run the MCP reference server if you plan to use Ozwell (see [`mcp-server/README.md`](./mcp-server/README.md))
-   - Follow the [Ozwell configuration](#configuring-ozwell-ai-assistant) steps to add your API key
+   - If you plan to use the Ozwell writing assistant, follow the [Ozwell configuration](#configuring-ozwell-ai-assistant) steps to add your API key
 
 ---
 
@@ -140,8 +139,8 @@ Ozwell provides AI-assisted writing for tickets and reflections. Setup is option
      ```
      (These are optional for Ozwell itself—they only power OAuth login.)
 
-2. **Start the reference server (optional)**  
-   Ozwell can call the bundled MCP reference server. See [`mcp-server/README.md`](./mcp-server/README.md) for installation and usage.
+2. **Start a reference server (optional)**  
+   If you have an Ozwell-compatible reference server running locally, note its base URL (defaults to `http://localhost:3000/v1`). This is only needed if you want the Ozwell modal to use a local inference endpoint.
 
 3. **Configure inside TimeHarbor**
    - Sign in and navigate to **Settings** (`/settings`).
