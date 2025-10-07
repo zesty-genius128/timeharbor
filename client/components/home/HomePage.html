@@ -11,22 +11,25 @@
     <div class="mb-12">
       <h3 class="text-xl font-semibold mb-4">Team Dashboard</h3>
       
-      <!-- Date Filter -->
-      <div class="mb-6 flex items-center gap-4">
-        <label class="font-medium">Filter by Date:</label>
-        <input type="date" id="date-filter" class="input input-bordered" value="{{selectedDate}}">
-        <button id="today-btn" class="btn btn-sm btn-outline">Today</button>
-        <button id="yesterday-btn" class="btn btn-sm btn-outline">Yesterday</button>
+      <!-- Date Range Filter -->
+      <div class="mb-6 flex flex-wrap items-center gap-4">
+        <label class="font-medium">Date Range:</label>
+        <input type="date" id="start-date" class="input input-bordered" value="{{startDate}}">
+        <span class="opacity-60">to</span>
+        <input type="date" id="end-date" class="input input-bordered" value="{{endDate}}">
+        <div class="flex items-center gap-2">
+          <button id="apply-range" class="btn btn-sm btn-primary">Apply</button>
+          <button id="preset-today" class="btn btn-sm btn-outline">Today</button>
+          <button id="preset-yesterday" class="btn btn-sm btn-outline">Yesterday</button>
+          <button id="preset-last7" class="btn btn-sm btn-outline">Last 7 Days</button>
+          <button id="preset-last14" class="btn btn-sm btn-outline">Last 14 Days</button>
+          <button id="preset-thisweek" class="btn btn-sm btn-outline">This Week</button>
+        </div>
       </div>
 
       <!-- Team Summary Grid -->
       <div id="teamDashboardGrid" class="ag-theme-alpine w-full h-96"></div>
 
-      {{#unless teamMemberSummary.length}}
-        <div class="text-center py-8 text-gray-500">
-          <p>No team activity found for {{formatDateOnly selectedDate}}</p>
-        </div>
-      {{/unless}}
     </div>
   {{/if}}
 
