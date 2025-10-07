@@ -1,10 +1,45 @@
 <template name="home">
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-4">Welcome to TimeHarbor</h2>
+    <p class="text-gray-600 mb-6">
+      Track your time efficiently across teams and projects.
+    </p>
+  </div>
+
+  <!-- Team Dashboard Section -->
+  {{#if isTeamLeader}}
+    <div class="mb-12">
+      <h3 class="text-xl font-semibold mb-4">Team Dashboard</h3>
+      
+      <!-- Date Range Filter -->
+      <div class="mb-6 flex flex-wrap items-center gap-4">
+        <label class="font-medium">Date Range:</label>
+        <input type="date" id="start-date" class="input input-bordered" value="{{startDate}}">
+        <span class="opacity-60">to</span>
+        <input type="date" id="end-date" class="input input-bordered" value="{{endDate}}">
+        <div class="flex items-center gap-2">
+          <button id="apply-range" class="btn btn-sm btn-primary">Apply</button>
+          <button id="preset-today" class="btn btn-sm btn-outline">Today</button>
+          <button id="preset-yesterday" class="btn btn-sm btn-outline">Yesterday</button>
+          <button id="preset-last7" class="btn btn-sm btn-outline">Last 7 Days</button>
+          <button id="preset-last14" class="btn btn-sm btn-outline">Last 14 Days</button>
+          <button id="preset-thisweek" class="btn btn-sm btn-outline">This Week</button>
+        </div>
+      </div>
+
+      <!-- Team Summary Grid -->
+      <div id="teamDashboardGrid" class="ag-theme-alpine w-full h-96"></div>
+
+    </div>
+  {{/if}}
+
+  <!-- Personal Time Overview -->
   <h3 class="text-xl font-semibold mb-4">Your Time Overview</h3>
   <ul class="space-y-4">
     {{#each allClockEvents}}
       <li class="card bg-base-100 shadow p-4">
         <div class="mb-2"><span class="font-bold">Project:</span> {{teamName teamId}}</div>
-        <div class="mb-2"><span class="font-bold">User:</span> {{userName userId}}</div>
+        <div class="mb-2"><span class="font-bold">Email:</span> {{userName userId}}</div>
         <div class="mb-2">
           <span class="font-bold">Clock-in Period:</span>
           {{#if endTime}}

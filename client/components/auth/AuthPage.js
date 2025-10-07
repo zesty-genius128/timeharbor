@@ -1,75 +1,104 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
+import { Meteor } from 'meteor/meteor';
 
-// Authentication-specific reactive variables
-const currentScreen = new ReactiveVar('authPage');
-const isLogoutLoading = new ReactiveVar(false);
-const logoutMessage = new ReactiveVar('');
+const authFormType = new ReactiveVar('hidden');
 
-// Export for use in other components
-export { currentScreen, isLogoutLoading, logoutMessage };
+export const currentScreen = new ReactiveVar('authPage');
 
-// Wait for template to be ready before attaching events
-// Removed empty onCreated block
+Template.authPage.onCreated(function() {
+  this.loginError = new ReactiveVar('');
+  this.isLoginLoading = new ReactiveVar(false);
+  
+  this.autorun(() => {
+    if (Meteor.userId()) {
+      currentScreen.set('mainLayout');
+    } else {
+      currentScreen.set('authPage');
+    }
+  });
+});
 
-// Auth page template events - with safety check
-if (Template.authPage) {
-  Template.authPage.events({
-  'click #signup'(event) {
-    event.preventDefault();
-    // Switch to the signup form screen
-    currentScreen.set('signupForm');
+Template.authPage.helpers({
+  showLoginForm: () => authFormType.get() === 'login',
+  showSignupForm: () => authFormType.get() === 'signup',
+  showEmailForm: () => authFormType.get() !== 'hidden',
+  loginError: () => Template.instance().loginError.get(),
+  isLoginLoading: () => Template.instance().isLoginLoading.get()
+});
+
+Template.formField.helpers({
+  emailPattern() {
+    return this.type === 'email' ? '[^@]+@[^@]+\\.[^@]+' : '';
+  },
+  emailTitle() {
+    return this.type === 'email' ? 'Please enter a valid email with domain (e.g., user@example.com)' : '';
+  }
+});
+
+Template.authPage.events({
+  'click #showSignupBtn': () => authFormType.set('signup'),
+  'click #showLoginBtn': () => authFormType.set('login'),
+  
+  'click #showEmailForm': () => {
+    authFormType.set(authFormType.get() === 'hidden' ? 'login' : 'hidden');
   },
   
-  'click #login'(event) {
+  'click #at-google'(event, template) {
     event.preventDefault();
-    // Switch to the login form screen
-    currentScreen.set('loginForm');
+    template.loginError.set('');
+    template.isLoginLoading.set(true);
+    
+    Meteor.loginWithGoogle({
+      requestPermissions: ['email', 'profile']
+    }, (err) => {
+      template.isLoginLoading.set(false);
+      if (err) {
+        console.error('Google login error:', err);
+        template.loginError.set(err.reason || 'Google login failed. Please try again.');
+      }
+    });
+  },
+
+  'click #at-github'(event, template) {
+    event.preventDefault();
+    template.loginError.set('');
+    template.isLoginLoading.set(true);
+    
+    Meteor.loginWithGithub({
+      requestPermissions: ['user:email']
+    }, (err) => {
+      template.isLoginLoading.set(false);
+      if (err) {
+        console.error('GitHub login error:', err);
+        template.loginError.set(err.reason || 'GitHub login failed. Please try again.');
+      }
+    });
   },
   
   'submit #signupForm'(event) {
     event.preventDefault();
+    const { email, password, confirmPassword } = event.target;
     
-    // Collect user input
-    const username = event.target.username.value;
-    const password = event.target.password.value;
+    if (password.value !== confirmPassword.value) return alert('Passwords do not match');
+    if (password.value.length < 6) return alert('Password too short');
     
-    // Call server method to create a new user
-    Meteor.call('createUserAccount', { username, password }, (err, result) => {
-      if (err) {
-        console.error('Error creating user:', err);
-        alert('Failed to create user: ' + err.reason);
-      } else {
-        // Immediately log in as the new user
-        Meteor.loginWithPassword(username, password, (loginErr) => {
-          if (loginErr) {
-            alert('Login failed: ' + loginErr.reason);
-          } else {
-            alert('User created and logged in successfully!');
-            currentScreen.set('mainLayout');
-          }
-        });
-      }
+    Accounts.createUser({ 
+      email: email.value.trim(), 
+      password: password.value 
+    }, (err) => {
+      if (err) alert('Signup failed: ' + err.reason);
+      else currentScreen.set('mainLayout');
     });
   },
   
   'submit #loginForm'(event) {
     event.preventDefault();
+    const { email, password } = event.target;
     
-    // Collect user input
-    const username = event.target.username.value;
-    const password = event.target.password.value;
-    
-    // Log in the user
-    Meteor.loginWithPassword(username, password, (err) => {
-      if (err) {
-        console.error('Error logging in:', err);
-        alert('Failed to log in: ' + err.reason);
-      } else {
-        alert('Logged in successfully!');
-        currentScreen.set('mainLayout');
-      }
+    Meteor.loginWithPassword(email.value.trim(), password.value, (err) => {
+      if (err) alert('Login failed: ' + err.reason);
+      else currentScreen.set('mainLayout');
     });
-  },
-  });
-}
+  }
+});
