@@ -4,12 +4,16 @@ import { Teams, Tickets, ClockEvents } from '../../../collections.js';
 import { formatTime, formatDate, calculateTotalTime } from '../../utils/TimeUtils.js';
 import { getTeamName, getUserEmail, getUserName } from '../../utils/UserTeamUtils.js';
 import { Grid } from 'ag-grid-community';
+import { isTeamsLoading } from '../layout/MainLayout.js';
 
 Template.home.onCreated(function () {
   const template = this;
   
-  // Initialize reactive variables for team dashboard
-  template.selectedDate = new ReactiveVar(new Date().toISOString().split('T')[0]); // Today's date in YYYY-MM-DD format
+  // Initialize reactive variables for team dashboard using local timezone
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  template.startDate = new ReactiveVar(todayStr); // default start: today
+  template.endDate = new ReactiveVar(todayStr);   // default end: today
   
   this.autorun(() => {
     // userTeams and clockEventsForUser subscriptions moved to MainLayout
@@ -43,27 +47,34 @@ Template.home.onCreated(function () {
 Template.home.onRendered(function () {
   const instance = this;
 
-  // Column definitions mirroring the former table
+  // Column definitions for daily breakdown
   const columnDefs = [
+    { headerName: 'Date', field: 'date', flex: 1, sortable: true, filter: 'agDateColumnFilter',
+      valueFormatter: p => {
+        // Parse date string and display in local format
+        const dateParts = p.value.split('-');
+        const localDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+        return localDate.toLocaleDateString();
+      } },
     { headerName: 'Team Member', field: 'displayName', flex: 1.5, sortable: true, filter: 'agTextColumnFilter' },
     { headerName: 'Email', field: 'userEmail', flex: 1.5, sortable: true, filter: 'agTextColumnFilter' },
     { 
-      headerName: 'Total Hours', field: 'totalSeconds', flex: 1, sortable: true, filter: 'agNumberColumnFilter',
+      headerName: 'Hours', field: 'totalSeconds', flex: 1, sortable: true, filter: 'agNumberColumnFilter',
       valueFormatter: p => formatTime(p.value)
     },
     { 
-      headerName: 'First Clock-in', field: 'firstClockIn', flex: 1.2, sortable: true, filter: 'agDateColumnFilter',
+      headerName: 'Clock-in', field: 'firstClockIn', flex: 1.2, sortable: true, filter: 'agDateColumnFilter',
       valueFormatter: p => p.value ? formatDate(p.value) : 'No activity'
     },
     { 
-      headerName: 'Last Clock-out', field: 'lastClockOut', flex: 1.2, sortable: true, filter: 'agDateColumnFilter',
+      headerName: 'Clock-out', field: 'lastClockOut', flex: 1.2, sortable: true, filter: 'agDateColumnFilter',
       valueFormatter: p => {
         if (!p.value) return p.data?.hasActiveSession ? 'Active' : '-';
         return formatDate(p.value);
       }
     },
     { 
-      headerName: 'Tickets Worked', field: 'tickets', flex: 1.5, sortable: false, filter: false,
+      headerName: 'Tickets', field: 'tickets', flex: 1.5, sortable: false, filter: false,
       valueFormatter: p => (Array.isArray(p.value) && p.value.length) ? p.value.join(', ') : 'No tickets'
     }
   ];
@@ -77,93 +88,162 @@ Template.home.onRendered(function () {
     }
   };
 
-  // Shared computation with the template helper, extracted for grid usage
+  // Daily breakdown computation - one row per person per day
   const computeTeamMemberSummary = () => {
-    const selectedDate = instance.selectedDate.get();
+    const startDateStr = instance.startDate.get();
+    const endDateStr = instance.endDate.get();
     const leaderTeams = Teams.find({ leader: Meteor.userId() }).fetch();
     if (!leaderTeams.length) return [];
 
-    const startOfDay = new Date(selectedDate + 'T00:00:00').getTime();
-    const endOfDay = new Date(selectedDate + 'T23:59:59').getTime();
+    const startDate = new Date(startDateStr + 'T00:00:00');
+    const endDate = new Date(endDateStr + 'T23:59:59');
     const teamIds = leaderTeams.map(t => t._id);
 
     const allMembers = Array.from(new Set(
       leaderTeams.flatMap(t => [...(t.members || []), ...(t.admins || []), t.leader].filter(id => id))
     ));
 
-    const rows = allMembers.map(userId => {
-      const userClockEvents = ClockEvents.find({
-        userId: userId,
-        teamId: { $in: teamIds },
-        startTimestamp: { $gte: startOfDay, $lte: endOfDay }
-      }).fetch();
+    const rows = [];
+    
+    // Generate all dates in range using local timezone
+    const dates = [];
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      // Create date in local timezone to avoid UTC conversion issues
+      const localDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+      dates.push(localDate);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
 
-      if (userClockEvents.length === 0) {
-        return {
-          userId,
-          displayName: getUserName(userId),
-          userEmail: getUserEmail(userId),
-          totalSeconds: 0,
-          firstClockIn: null,
-          lastClockOut: null,
-          hasActiveSession: false,
-          tickets: []
-        };
-      }
+    // For each member and each date, create a row
+    allMembers.forEach(userId => {
+      dates.forEach(date => {
+        // Use local timezone for day boundaries
+        const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0).getTime();
+        const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999).getTime();
+        
+        // Get all clock events that overlap with this day
+        // This includes events that start before this day but end during/after it
+        const dayClockEvents = ClockEvents.find({
+          userId: userId,
+          teamId: { $in: teamIds },
+          $or: [
+            // Events that start on this day
+            { startTimestamp: { $gte: startOfDay, $lte: endOfDay } },
+            // Events that started before this day but are still active or end on this day
+            { 
+              startTimestamp: { $lt: startOfDay },
+              $or: [
+                { endTime: { $gte: startOfDay, $lte: endOfDay } }, // Ended on this day
+                { endTime: { $exists: false } } // Still active
+              ]
+            }
+          ]
+        }).fetch();
 
-      let totalSeconds = 0;
-      let firstClockIn = null;
-      let lastClockOut = null;
-      let hasActiveSession = false;
-      const ticketTitles = new Set();
+        if (dayClockEvents.length > 0) {
+          let totalSeconds = 0;
+          let firstClockIn = null;
+          let lastClockOut = null;
+          let hasActiveSession = false;
+          const ticketTitles = new Set();
 
-      userClockEvents.forEach(clockEvent => {
-        totalSeconds += calculateTotalTime(clockEvent);
-        if (!firstClockIn || clockEvent.startTimestamp < firstClockIn) {
-          firstClockIn = clockEvent.startTimestamp;
-        }
-        if (clockEvent.endTime) {
-          if (!lastClockOut || clockEvent.endTime > lastClockOut) {
-            lastClockOut = clockEvent.endTime;
+          dayClockEvents.forEach(clockEvent => {
+            // Handle cross-midnight sessions
+            const sessionStart = clockEvent.startTimestamp;
+            const sessionEnd = clockEvent.endTime || Date.now(); // Use current time if still active
+            const sessionDuration = sessionEnd - sessionStart;
+            
+            // Calculate how much of this session belongs to this specific day
+            const dayStart = startOfDay;
+            const dayEnd = endOfDay;
+            
+            // Find overlap between session and this day
+            const overlapStart = Math.max(sessionStart, dayStart);
+            const overlapEnd = Math.min(sessionEnd, dayEnd);
+            
+            if (overlapStart < overlapEnd) {
+              // This session has time on this day
+              const daySessionSeconds = Math.floor((overlapEnd - overlapStart) / 1000);
+              totalSeconds += daySessionSeconds;
+              
+              // Track first clock-in for this day
+              if (sessionStart >= dayStart && sessionStart <= dayEnd) {
+                if (!firstClockIn || sessionStart < firstClockIn) {
+                  firstClockIn = sessionStart;
+                }
+              }
+              
+              // Track last clock-out for this day
+              if (clockEvent.endTime && clockEvent.endTime >= dayStart && clockEvent.endTime <= dayEnd) {
+                if (!lastClockOut || clockEvent.endTime > lastClockOut) {
+                  lastClockOut = clockEvent.endTime;
+                }
+              } else if (!clockEvent.endTime && sessionEnd >= dayStart && sessionEnd <= dayEnd) {
+                hasActiveSession = true;
+              }
+              
+              // Add tickets for this session
+              clockEvent.tickets?.forEach(ticket => {
+                const ticketDoc = Tickets.findOne(ticket.ticketId);
+                if (ticketDoc) ticketTitles.add(ticketDoc.title);
+              });
+            }
+          });
+
+          // Only create a row if there's actual work time on this day
+          if (totalSeconds > 0 || hasActiveSession) {
+          // Format date in local timezone (YYYY-MM-DD)
+          const localDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          
+          rows.push({
+            date: localDateStr,
+            userId,
+            displayName: getUserName(userId),
+            userEmail: getUserEmail(userId),
+            totalSeconds,
+            firstClockIn,
+            lastClockOut,
+            hasActiveSession,
+            tickets: Array.from(ticketTitles)
+          });
           }
-        } else {
-          hasActiveSession = true;
         }
-        clockEvent.tickets?.forEach(ticket => {
-          const ticketDoc = Tickets.findOne(ticket.ticketId);
-          if (ticketDoc) ticketTitles.add(ticketDoc.title);
-        });
       });
-
-      return {
-        userId,
-        displayName: getUserName(userId),
-        userEmail: getUserEmail(userId),
-        totalSeconds,
-        firstClockIn,
-        lastClockOut,
-        hasActiveSession,
-        tickets: Array.from(ticketTitles)
-      };
     });
 
-    return rows.filter(member => member.totalSeconds > 0 || member.hasActiveSession);
+    return rows.sort((a, b) => {
+      // Sort by date first, then by user name
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.displayName.localeCompare(b.displayName);
+    });
   };
 
-  // Initialize grid
-  const gridEl = instance.find('#teamDashboardGrid');
-  if (gridEl) {
-    new Grid(gridEl, instance.gridOptions);
-    const initialRows = computeTeamMemberSummary();
-    if (instance.gridOptions?.api) {
-      instance.gridOptions.api.setRowData(initialRows);
-    }
-  }
+  // Initialize grid when container exists and user is a leader (section is visible)
+  // Wait until teams subscription is ready and the container is in the DOM
+  instance.autorun(() => {
+    const teamsReady = !isTeamsLoading.get();
+    const hasLeaderTeam = !!Teams.findOne({ leader: Meteor.userId() });
+    if (!teamsReady || !hasLeaderTeam) return;
+
+    Tracker.afterFlush(() => {
+      const gridEl = instance.find('#teamDashboardGrid');
+      if (gridEl && !gridEl.__ag_initialized) {
+        new Grid(gridEl, instance.gridOptions);
+        gridEl.__ag_initialized = true;
+        const initialRows = computeTeamMemberSummary();
+        if (instance.gridOptions?.api) {
+          instance.gridOptions.api.setRowData(initialRows);
+        }
+      }
+    });
+  });
 
   // Reactive updates: respond to date changes and collection updates
   instance.autorun(() => {
     // Dependencies to re-run: selected date, relevant collections
-    instance.selectedDate.get();
+    instance.startDate.get();
+    instance.endDate.get();
     Teams.find({ leader: Meteor.userId() }).fetch();
     ClockEvents.find().fetch();
     Tickets.find().fetch();
@@ -208,9 +288,8 @@ Template.home.helpers({
     return Teams.findOne({ leader: Meteor.userId() });
   },
   
-  selectedDate() {
-    return Template.instance().selectedDate.get();
-  },
+  startDate() { return Template.instance().startDate.get(); },
+  endDate() { return Template.instance().endDate.get(); },
   
   formatDateOnly(dateString) {
     const date = new Date(dateString);
@@ -218,87 +297,9 @@ Template.home.helpers({
   },
   
   teamMemberSummary() {
-    const template = Template.instance();
-    const selectedDate = template.selectedDate.get();
-    const leaderTeams = Teams.find({ leader: Meteor.userId() }).fetch();
-    
-    if (!leaderTeams.length) return [];
-    
-    // Get start and end of selected date
-    const startOfDay = new Date(selectedDate + 'T00:00:00').getTime();
-    const endOfDay = new Date(selectedDate + 'T23:59:59').getTime();
-    
-    const teamIds = leaderTeams.map(t => t._id);
-    
-    // Get all team members
-    const allMembers = Array.from(new Set(
-      leaderTeams.flatMap(t => [...(t.members || []), ...(t.admins || []), t.leader].filter(id => id))
-    ));
-    
-    return allMembers.map(userId => {
-      // Get clock events for this user on selected date
-      const userClockEvents = ClockEvents.find({
-        userId: userId,
-        teamId: { $in: teamIds },
-        startTimestamp: { $gte: startOfDay, $lte: endOfDay }
-      }).fetch();
-      
-      if (userClockEvents.length === 0) {
-        return {
-          userId: userId,
-          userEmail: getUserEmail(userId),
-          totalSeconds: 0,
-          firstClockIn: null,
-          lastClockOut: null,
-          hasActiveSession: false,
-          tickets: []
-        };
-      }
-      
-      // Calculate total time and get first/last times
-      let totalSeconds = 0;
-      let firstClockIn = null;
-      let lastClockOut = null;
-      let hasActiveSession = false;
-      const ticketTitles = new Set();
-      
-      userClockEvents.forEach(clockEvent => {
-        // Add up total time
-        totalSeconds += calculateTotalTime(clockEvent);
-        
-        // Track first clock-in
-        if (!firstClockIn || clockEvent.startTimestamp < firstClockIn) {
-          firstClockIn = clockEvent.startTimestamp;
-        }
-        
-        // Track last clock-out
-        if (clockEvent.endTime) {
-          if (!lastClockOut || clockEvent.endTime > lastClockOut) {
-            lastClockOut = clockEvent.endTime;
-          }
-        } else {
-          hasActiveSession = true;
-        }
-        
-        // Collect ticket titles
-        clockEvent.tickets?.forEach(ticket => {
-          const ticketDoc = Tickets.findOne(ticket.ticketId);
-          if (ticketDoc) {
-            ticketTitles.add(ticketDoc.title);
-          }
-        });
-      });
-      
-      return {
-        userId: userId,
-        userEmail: getUserEmail(userId),
-        totalSeconds: totalSeconds,
-        firstClockIn: firstClockIn,
-        lastClockOut: lastClockOut,
-        hasActiveSession: hasActiveSession,
-        tickets: Array.from(ticketTitles)
-      };
-    }).filter(member => member.totalSeconds > 0 || member.hasActiveSession); // Only show members with activity
+    // Return empty array since we're using AG Grid for display
+    // The actual data is computed in computeTeamMemberSummary()
+    return [];
   },
   
   // Helper to get user name in template
@@ -308,24 +309,64 @@ Template.home.helpers({
 });
 
 Template.home.events({
-  'change #date-filter'(event, template) {
-    const selectedDate = event.target.value;
-    template.selectedDate.set(selectedDate);
+  'click #apply-range'(e, t) {
+    const start = t.$('#start-date').val();
+    const end = t.$('#end-date').val();
+    if (start) t.startDate.set(start);
+    if (end) t.endDate.set(end);
   },
-  
-  'click #today-btn'(event, template) {
-    const today = new Date().toISOString().split('T')[0];
-    template.selectedDate.set(today);
-    // Update the input field
-    template.$('#date-filter').val(today);
+  'click #preset-today'(e, t) {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    t.startDate.set(todayStr);
+    t.endDate.set(todayStr);
+    t.$('#start-date').val(todayStr);
+    t.$('#end-date').val(todayStr);
   },
-  
-  'click #yesterday-btn'(event, template) {
+  'click #preset-yesterday'(e, t) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    template.selectedDate.set(yesterdayStr);
-    // Update the input field
-    template.$('#date-filter').val(yesterdayStr);
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    t.startDate.set(yesterdayStr);
+    t.endDate.set(yesterdayStr);
+    t.$('#start-date').val(yesterdayStr);
+    t.$('#end-date').val(yesterdayStr);
+  },
+  'click #preset-last7'(e, t) {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+    t.startDate.set(startStr);
+    t.endDate.set(endStr);
+    t.$('#start-date').val(startStr);
+    t.$('#end-date').val(endStr);
+  },
+  'click #preset-last14'(e, t) {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 13); // 14 days total (today + 13 previous days)
+    const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+    t.startDate.set(startStr);
+    t.endDate.set(endStr);
+    t.$('#start-date').val(startStr);
+    t.$('#end-date').val(endStr);
+  },
+  'click #preset-thisweek'(e, t) {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    const diffToMonday = (day + 6) % 7; // Mon=0
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const mondayStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+    const sundayStr = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`;
+    t.startDate.set(mondayStr);
+    t.endDate.set(sundayStr);
+    t.$('#start-date').val(mondayStr);
+    t.$('#end-date').val(sundayStr);
   }
 });

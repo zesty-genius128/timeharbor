@@ -3,6 +3,7 @@ import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
 import { Teams, Tickets } from '../../../collections.js';
 import { Grid } from 'ag-grid-community';
+import { getUserName } from '../../utils/UserTeamUtils.js';
 
 const GRID_INIT_DELAY = 200;
 
@@ -62,7 +63,7 @@ Template.admin.onRendered(function () {
       cellRenderer: params => {
         if (!params.value) return '—';
         const reviewedBy = params.data.reviewedBy;
-        const reviewerName = reviewedBy ? (Meteor.users.findOne(reviewedBy) || {}).username || 'Unknown' : 'Unknown';
+        const reviewerName = reviewedBy ? getUserName(reviewedBy) : 'Unknown';
         return `<div class="text-xs">
           <div>${new Date(params.value).toLocaleString()}</div>
           <div class="text-gray-500">by ${reviewerName}</div>
@@ -98,7 +99,7 @@ Template.admin.onRendered(function () {
   const mapTicketsWithUserData = (tickets) => {
     return tickets.map(t => ({
       ...t,
-      createdByName: (Meteor.users.findOne(t.createdBy) || {}).username || 'Unknown',
+      createdByName: getUserName(t.createdBy),
       reviewedBy: t.reviewedBy || null,
     }));
   };
