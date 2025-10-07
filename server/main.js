@@ -1,7 +1,6 @@
 import { Meteor } from 'meteor/meteor';
 import { check } from 'meteor/check';
 import { ServiceConfiguration } from 'meteor/service-configuration';
-import { Tickets, Teams, Sessions, ClockEvents } from '../collections.js';
 import { Tickets, Teams, Sessions, ClockEvents, OzwellPrompts } from '../collections.js';
 // Import authentication methods
 import { authMethods } from './methods/auth.js';
