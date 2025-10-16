@@ -6,6 +6,7 @@
 class OzwellStateSync {
   constructor() {
     this.broker = null;
+    this.client = null;
     this.formFields = {
       title: null,
       description: null,
@@ -32,7 +33,7 @@ class OzwellStateSync {
         // Check if at least title field exists (main indicator form is loaded)
         if (this.formFields.title) {
           clearInterval(checkFormReady);
-          this.initializeBroker();
+          this.initializeBrokerAndClient();
           this.attachListeners();
           console.log('[iframe-sync] State sync initialized');
         }
@@ -40,13 +41,25 @@ class OzwellStateSync {
     }, 500);
   }
 
-  initializeBroker() {
-    // Initialize broker with current form state
-    this.broker = new IframeSyncBroker({
+  initializeBrokerAndClient() {
+    // Initialize broker (no parameters - just a message relay)
+    this.broker = new IframeSyncBroker();
+
+    // Initialize client for parent page (parent needs a client too!)
+    this.client = new IframeSyncClient('timeharbor-parent', (state) => {
+      console.log('[iframe-sync] Received state update:', state);
+      // Parent can receive state updates from widget here if needed
+    });
+
+    // Register client with broker
+    this.client.ready();
+
+    // Send initial form state
+    this.client.stateChange({
       ticketForm: this.getCurrentFormState()
     });
 
-    console.log('[iframe-sync] Broker initialized with state:', this.getCurrentFormState());
+    console.log('[iframe-sync] Broker and client initialized with state:', this.getCurrentFormState());
   }
 
   getCurrentFormState() {
@@ -62,8 +75,8 @@ class OzwellStateSync {
   }
 
   updateState(field, value) {
-    if (!this.broker) {
-      console.warn('[iframe-sync] Broker not initialized yet');
+    if (!this.client) {
+      console.warn('[iframe-sync] Client not initialized yet');
       return;
     }
 
@@ -78,7 +91,8 @@ class OzwellStateSync {
       update.ticketForm.teamName = this.formFields.team?.selectedOptions[0]?.text || '';
     }
 
-    this.broker.stateChange(update);
+    // Use CLIENT to update state (not broker!)
+    this.client.stateChange(update);
     console.log(`[iframe-sync] State updated: ${field} = ${value}`);
   }
 
@@ -130,9 +144,10 @@ class OzwellStateSync {
 
   // Public method to manually trigger state sync (useful after tool execution)
   syncCurrentState() {
-    if (!this.broker) return;
+    if (!this.client) return;
 
-    this.broker.stateChange({
+    // Use CLIENT to update state (not broker!)
+    this.client.stateChange({
       ticketForm: this.getCurrentFormState()
     });
 

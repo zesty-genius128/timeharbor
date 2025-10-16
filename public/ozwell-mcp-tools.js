@@ -308,10 +308,15 @@ class OzwellMCPIntegration {
         }
       }
 
-      const { type, toolCall } = event.data;
+      const { source, type, tool, payload } = event.data;
 
-      if (type === 'CALL_TOOL') {
-        // Widget is requesting to execute a tool
+      // Match Ozwell's convention: type='tool_call', tool=name, payload=args
+      if (source === 'ozwell-chat-widget' && type === 'tool_call') {
+        // Convert to expected format
+        const toolCall = {
+          name: tool,
+          arguments: payload
+        };
         console.log('[MCP Tools] Tool call requested:', toolCall);
         this.executeTool(toolCall);
       }
@@ -346,14 +351,19 @@ class OzwellMCPIntegration {
   }
 
   sendToolResult(result) {
-    if (!this.widgetIframe) {
-      console.error('[MCP Tools] Cannot send tool result: widget iframe not found');
+    // Find widget iframe dynamically
+    const widgetIframe = document.querySelector('iframe[src*="widget.html"]');
+
+    if (!widgetIframe) {
+      console.warn('[MCP Tools] Widget iframe not found, cannot send result');
       return;
     }
 
-    this.widgetIframe.contentWindow.postMessage(
+    // Send result back to widget (Ozwell convention)
+    widgetIframe.contentWindow.postMessage(
       {
-        type: 'TOOL_RESULT',
+        source: 'ozwell-chat-parent',
+        type: 'tool_result',
         result: result
       },
       '*'
