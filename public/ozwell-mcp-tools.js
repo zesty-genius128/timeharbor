@@ -8,6 +8,18 @@ const mcpTools = [
   {
     type: 'function',
     function: {
+      name: 'get_current_ticket_form',
+      description: 'Retrieves the current values from all ticket form fields (title, description, hours, minutes, seconds, team). Use this when the user asks what is currently filled in or to check current values.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'update_ticket_title',
       description: 'Updates the title field of the current ticket form',
       parameters: {
@@ -110,13 +122,39 @@ const mcpTools = [
 // Add tools to OzwellChatConfig (widget reads from here)
 if (window.OzwellChatConfig) {
   window.OzwellChatConfig.tools = mcpTools;
-  console.log('[MCP Tools] Added', mcpTools.length, 'tools to OzwellChatConfig');
+  console.log('[MCP Tools] Added', mcpTools.length, 'tools to OzwellChatConfig:', mcpTools.map(t => t.function.name).join(', '));
 } else {
   console.error('[MCP Tools] window.OzwellChatConfig not found! Tools will not be available.');
 }
 
 // Tool Handler Functions
 const toolHandlers = {
+  get_current_ticket_form: async (params) => {
+    const titleInput = document.querySelector('[name="title"]');
+    const descInput = document.querySelector('[name="github"]');
+    const hoursInput = document.querySelector('[name="hours"]');
+    const minutesInput = document.querySelector('[name="minutes"]');
+    const secondsInput = document.querySelector('[name="seconds"]');
+    const teamSelect = document.querySelector('[name="team"]');
+
+    const result = {
+      success: true,
+      data: {
+        title: titleInput?.value || '',
+        description: descInput?.value || '',
+        hours: hoursInput?.value || '0',
+        minutes: minutesInput?.value || '0',
+        seconds: secondsInput?.value || '0',
+        team: teamSelect?.value || '',
+        teamName: teamSelect?.selectedOptions[0]?.text || 'No team selected'
+      },
+      message: 'Retrieved current ticket form values'
+    };
+
+    console.log('[MCP Tools] get_current_ticket_form result:', result);
+    return result;
+  },
+
   update_ticket_title: async (params) => {
     const titleInput = document.querySelector('[name="title"]');
     if (!titleInput) {
